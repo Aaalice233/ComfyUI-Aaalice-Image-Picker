@@ -1,0 +1,16 @@
+{
+  "AaaliceImagePicker": {
+    "display_name": "🖼️ Aaalice 图像选择器",
+    "description": "暂停工作流，由用户选择继续传递的图像。",
+    "inputs": {
+      "images": { "name": "图像", "tooltip": "需要人工筛选的图像批次。" },
+      "instructions": { "name": "说明", "tooltip": "从字符串节点连接的可选 Markdown 说明。" },
+      "selection_mode": { "name": "选择模式", "tooltip": "确认前选择一张或任意多张图像。", "options": { "single": "单选", "multiple": "多选" } },
+      "timeout": { "name": "超时", "tooltip": "服务端执行超时策略前等待的秒数。" },
+      "timeout_action": { "name": "超时策略", "tooltip": "倒计时结束时由服务端执行的动作。", "options": { "cancel": "取消执行", "submit_selected": "提交已选", "submit_all": "提交全部", "submit_first": "提交第一张", "submit_last": "提交最后一张" } }
+    },
+    "outputs": {
+      "0": { "name": "图像", "tooltip": "按原批次顺序排列的已选图像。" }
+    }
+  }
+}

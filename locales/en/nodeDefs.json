@@ -1,0 +1,16 @@
+{
+  "AaaliceImagePicker": {
+    "display_name": "🖼️ Aaalice Image Picker",
+    "description": "Pause execution and manually choose which images continue through the workflow.",
+    "inputs": {
+      "images": { "name": "images", "tooltip": "The image batch to review." },
+      "instructions": { "name": "instructions", "tooltip": "Optional Markdown instructions from a connected string node." },
+      "selection_mode": { "name": "selection mode", "tooltip": "Choose one image or any number of images before confirming.", "options": { "single": "Single", "multiple": "Multiple" } },
+      "timeout": { "name": "timeout", "tooltip": "Seconds before the server applies the timeout action." },
+      "timeout_action": { "name": "timeout action", "tooltip": "Action applied by the server when the countdown expires.", "options": { "cancel": "Cancel", "submit_selected": "Submit selected", "submit_all": "Submit all", "submit_first": "Submit first", "submit_last": "Submit last" } }
+    },
+    "outputs": {
+      "0": { "name": "images", "tooltip": "The selected images in original batch order." }
+    }
+  }
+}

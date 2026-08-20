@@ -1,0 +1,16 @@
+{
+  "AaaliceImagePicker": {
+    "display_name": "🖼️ Aaalice 圖像選擇器",
+    "description": "暫停工作流程，由使用者選擇繼續傳遞的圖像。",
+    "inputs": {
+      "images": { "name": "圖像", "tooltip": "需要人工篩選的圖像批次。" },
+      "instructions": { "name": "說明", "tooltip": "從字串節點連接的可選 Markdown 說明。" },
+      "selection_mode": { "name": "選擇模式", "tooltip": "確認前選擇一張或任意多張圖像。", "options": { "single": "單選", "multiple": "多選" } },
+      "timeout": { "name": "逾時", "tooltip": "伺服器執行逾時策略前等待的秒數。" },
+      "timeout_action": { "name": "逾時策略", "tooltip": "倒數結束時由伺服器執行的動作。", "options": { "cancel": "取消執行", "submit_selected": "提交已選", "submit_all": "提交全部", "submit_first": "提交第一張", "submit_last": "提交最後一張" } }
+    },
+    "outputs": {
+      "0": { "name": "圖像", "tooltip": "按原批次順序排列的已選圖像。" }
+    }
+  }
+}

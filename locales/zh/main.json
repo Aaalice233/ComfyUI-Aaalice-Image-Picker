@@ -1,0 +1,16 @@
+{
+  "aaaliceImagePicker": {
+    "title": "选择图像",
+    "mode": { "single": "单选模式", "multiple": "多选模式" },
+    "timer": { "label": "剩余时间", "urgent": "即将超时", "expired": "正在执行超时策略…" },
+    "timeoutAction": { "cancel": "取消执行", "submit_selected": "提交当前选择", "submit_all": "提交全部图像", "submit_first": "提交第一张图像", "submit_last": "提交最后一张图像" },
+    "instructions": { "title": "说明", "expand": "显示说明", "collapse": "收起说明", "error": "无法安全渲染 Markdown 说明。" },
+    "button": { "selectAll": "全选", "clear": "清空", "cancel": "取消", "confirm": "确认选择", "back": "返回图库", "previous": "上一张", "next": "下一张", "zoomIn": "放大", "zoomOut": "缩小", "resetZoom": "重置缩放", "selectCurrent": "选择当前图像", "deselectCurrent": "取消选择当前图像", "enlarge": "打开大图预览" },
+    "selection": { "count": "已选择 {count}/{total} 张", "none": "尚未选择图像", "selected": "已选择第 {number} 张图像", "deselected": "已取消选择第 {number} 张图像" },
+    "preview": { "position": "第 {number}/{total} 张", "zoom": "{percent}%", "loading": "正在加载大图…" },
+    "status": { "loading": "正在加载图像选择器…", "empty": "没有可供选择的图像。", "waiting": "等待选择", "submitting": "正在提交选择…", "cancelling": "正在取消执行…", "done": "选择已完成", "restored": "已恢复进行中的选择", "imageFailed": "无法加载图像预览。" },
+    "shortcut": { "gallery": "方向键移动 · 空格选择 · 回车预览 · Esc 取消", "preview": "←/→ 切图 · 空格选择 · +/- 缩放 · 0 重置 · Esc 返回" },
+    "aria": { "modal": "图像选择对话框", "gallery": "可供选择的图像", "countdown": "剩余时间：{time}。超时后：{action}。", "image": "第 {number} 张图像", "selectedImage": "第 {number} 张图像，已选择", "instructions": "Markdown 说明", "preview": "大图预览", "live": "图像选择器状态" },
+    "error": { "network": "请求失败，请检查 ComfyUI 连接后重试。", "session_not_found": "本次选择已不存在。", "session_expired": "本次选择已过期。", "session_finished": "本次选择已经结束。", "invalid_session_id": "选择 session ID 无效。", "client_mismatch": "本次选择属于另一个 ComfyUI 客户端。", "client_required": "缺少 ComfyUI 客户端 ID。", "stale_revision": "服务端已收到更新的选择。", "invalid_revision": "选择版本无效。", "invalid_selection": "已选图像索引无效。", "duplicate_selection": "选择中包含重复的图像索引。", "selection_out_of_range": "已选图像索引超出范围。", "single_selection_required": "单选模式只能选择一张图像。", "invalid_action": "请求的选择器操作无效。", "invalid_json": "服务端无法读取本次请求。", "invalid_response": "服务端返回了无效响应。", "unknown": "图像选择器遇到意外错误。" }
+  }
+}

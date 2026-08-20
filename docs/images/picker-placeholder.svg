@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="810" viewBox="0 0 1440 810" role="img" aria-labelledby="title desc">
+  <title id="title">Aaalice Image Picker screenshot placeholder</title>
+  <desc id="desc">A neutral placeholder reserved for the final ComfyUI image picker screenshot.</desc>
+  <rect width="1440" height="810" fill="#17181b"/>
+  <rect x="54" y="48" width="1332" height="714" rx="24" fill="#25272b" stroke="#ffffff" stroke-opacity=".08"/>
+  <rect x="54" y="48" width="1332" height="86" rx="24" fill="#2c2e33"/>
+  <rect x="54" y="110" width="1332" height="24" fill="#2c2e33"/>
+  <rect x="78" y="162" width="286" height="498" rx="14" fill="#2a2c30"/>
+  <g fill="#34373d">
+    <rect x="390" y="162" width="300" height="222" rx="14"/>
+    <rect x="710" y="162" width="300" height="222" rx="14"/>
+    <rect x="1030" y="162" width="300" height="222" rx="14"/>
+    <rect x="390" y="404" width="300" height="222" rx="14"/>
+    <rect x="710" y="404" width="300" height="222" rx="14"/>
+    <rect x="1030" y="404" width="300" height="222" rx="14"/>
+  </g>
+  <rect x="54" y="688" width="1332" height="74" rx="24" fill="#2c2e33"/>
+  <text x="720" y="94" text-anchor="middle" fill="#f2f2f3" font-family="system-ui, sans-serif" font-size="22" font-weight="600">Aaalice Image Picker</text>
+  <text x="720" y="724" text-anchor="middle" fill="#ffffff" fill-opacity=".52" font-family="system-ui, sans-serif" font-size="15">Screenshot placeholder · replace after real-page visual acceptance</text>
+</svg>
