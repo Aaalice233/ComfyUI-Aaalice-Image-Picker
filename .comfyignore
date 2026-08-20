@@ -1,0 +1,6 @@
+# Development-only files
+AGENTS.md
+package.json
+tests/
+tests-js/
+docs/PROJECT.md

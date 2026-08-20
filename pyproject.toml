@@ -1,0 +1,19 @@
+[project]
+name = "aaalice-image-picker"
+description = "Pause ComfyUI workflows to inspect and manually select images from a batch."
+version = "1.0.0"
+requires-python = ">=3.9"
+dependencies = []
+license = { file = "LICENSE" }
+classifiers = [
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+Repository = "https://github.com/Aaalice233/ComfyUI-Aaalice-Image-Picker"
+Documentation = "https://github.com/Aaalice233/ComfyUI-Aaalice-Image-Picker#readme"
+Issues = "https://github.com/Aaalice233/ComfyUI-Aaalice-Image-Picker/issues"
+
+[tool.comfy]
+PublisherId = "aaalice"
+DisplayName = "Aaalice Image Picker"
