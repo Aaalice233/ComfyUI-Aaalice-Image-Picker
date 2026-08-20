@@ -11,6 +11,7 @@ Pause a ComfyUI workflow and manually filter an image batch in an internal modal
 - Both single and multiple modes require an explicit confirmation; clicking never submits immediately.
 - A server-authoritative countdown with five actions: cancel, current selection, all, first, or last.
 - Responsive thumbnail grid; every card independently supports pointer-anchored zoom (100%–800%) and constrained drag-to-pan for direct detail comparison.
+- Card and large-preview zoom redraw only the visible region from the full-resolution lossless temporary PNG instead of stretching an already downscaled on-screen thumbnail.
 - Immersive preview inside the same overlay, complete keyboard operation, and focus management.
 - Collapsible CommonMark/GFM instructions rendered safely with local `marked` + `DOMPurify` copies.
 - Complete `en`, `zh`, and `zh-TW` UI and node localization.
@@ -134,6 +135,9 @@ Yes. A reconnect with the same ComfyUI client ID queries and restores any sessio
 
 **Can Markdown execute HTML or scripts?**
 No. Rendered output passes through an explicit allowlist; external links open in a new tab with `noopener noreferrer`.
+
+**Why can pixels become visible at extreme zoom?**
+Once display magnification exceeds the source's native pixels, the preview stops applying blur interpolation instead of inventing detail that is not present. The result reflects the input image's actual pixel resolution.
 
 ## Development checks
 

@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { clampPan, exceedsDragThreshold, galleryScrollDelta, normalizeWheelDelta, panBy, resetZoom, shouldCaptureCardWheel, wheelZoomScale, zoomAt } from "../web/lib/zoom.js";
+import { clampPan, exceedsDragThreshold, galleryScrollDelta, normalizeWheelDelta, panBy, resetZoom, shouldCaptureCardWheel, wheelZoomScale, zoomAt, zoomStateChanged } from "../web/lib/zoom.js";
 
 const bounds = { viewportWidth: 800, viewportHeight: 600, imageWidth: 800, imageHeight: 400 };
 
@@ -21,6 +21,11 @@ test("zoom and pan are clamped to scale and visible boundaries", () => {
 	assert.deepEqual(zoomAt(resetZoom(), 99, { x: 0, y: 0 }, bounds), { scale: 8, x: 0, y: 0 });
 	assert.deepEqual(panBy({ scale: 2, x: 0, y: 0 }, { x: 9999, y: -9999 }, bounds), { scale: 2, x: 400, y: -100 });
 	assert.deepEqual(clampPan({ scale: 1, x: 30, y: 30 }, bounds), resetZoom());
+});
+
+test("unchanged boundary states can skip redundant raster work", () => {
+	assert.equal(zoomStateChanged({ scale: 8, x: 0, y: 0 }, { scale: 8, x: 0, y: 0 }), false);
+	assert.equal(zoomStateChanged({ scale: 2, x: 0, y: 0 }, { scale: 2, x: 1, y: 0 }), true);
 });
 
 test("wheel zoom normalizes pixel, line, and page deltas", () => {

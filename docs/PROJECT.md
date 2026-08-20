@@ -13,7 +13,7 @@
 - `routes.py`：把 aiohttp JSON 请求规范化为 Session Store 操作，并返回明确 HTTP 错误。
 - `web/index.js`：ComfyUI 扩展入口、定向 WebSocket 事件与 session 恢复桥接。
 - `web/picker.js`：模态 DOM、焦点、图库、预览和网络交互。
-- `web/lib/`：可由 Node 内置测试直接覆盖的选择、deadline、session registry、缩放和 Markdown 逻辑。
+- `web/lib/`：可由 Node 内置测试直接覆盖的选择、deadline、session registry、缩放、可见区域栅格计划和 Markdown 逻辑。
 - `locales/`：ComfyUI 节点翻译与自绘 UI 翻译，业务组件不分散硬编码英文文案。
 
 原始 tensor 只保留在当前节点执行调用中。Session Store 只保存 UUID、客户端/节点身份、预览描述、纯文本说明和索引状态，不持有 tensor 或跨执行大对象缓存。
@@ -82,7 +82,7 @@ WebSocket 事件 `aaalice-image-picker-open` 与 `aaalice-image-picker-close` �
 ## 数据流
 
 1. ComfyUI 执行 V3 节点并提供 `images` 与 `unique_id`。
-2. `PreviewImage` 把 batch 写入 ComfyUI temp，返回安全的预览描述。
+2. `PreviewImage` 按 ComfyUI 宿主预览标准，把 batch 以完整宽高的 8-bit 无损 PNG 写入 temp，并返回安全的预览描述。
 3. 后端创建带完整 UUID、client、deadline 和策略的 session。
 4. 定向 open 事件让对应页面挂载模态；刷新时由恢复 API 补发等价 payload。
 5. 前端选择变化发送 revision 草稿；确认发送完整选择。
@@ -100,7 +100,7 @@ WebSocket 事件 `aaalice-image-picker-open` 与 `aaalice-image-picker-close` �
 
 键盘焦点位于卡片时，`+`/`-` 缩放、`Shift+方向键` 平移、`0` 重置，并通过 live region 播报结果；普通方向键仍只负责网格导航。图库级 `aria-describedby` 只朗读一次完整操作说明，避免每张卡片重复长文案。精确指针 hover 时显示克制的“滚轮缩放”提示；触控环境不依赖该提示，而使用始终可见且至少 44×44px 的大图入口和大图工具栏。
 
-卡片与大图都把 fit 尺寸定义为 100%，缩放范围为 1–8 倍，缩放和平移只更新 `transform`。大图滚轮同样用指针对应的中心坐标计算锚点；Pointer Events 平移使用预览边界 clamp。大图切图和 resize 重新 fit，卡片 resize 则保留比例并重新约束平移。
+卡片与大图都把 fit 尺寸定义为 100%，缩放范围为 1–8 倍。未放大的卡片继续使用 lazy/async `<img>`，进入缩放后则从完整分辨率临时 PNG 中只裁取当前可见的源像素区域，重绘到视口尺寸的 Canvas；不会对已经缩小的 DOM 位图做合成层拉伸。Canvas backing store 跟随设备像素比；大图单视口受 8,388,608 像素预算约束；所有可见缩放卡片稳态合计不超过 6,291,456 像素，并为新进入交互的卡片预留 2,097,152 像素，使重平衡前的瞬时总量也不超过 8,388,608。单边长度不超过 16,384，宽高向下取整以保证实际分配不突破预算。连续滚轮和拖拽由 `requestAnimationFrame` 合并到每帧一次低成本重绘，停止操作 80ms 后再恢复完整像素密度。低于原生像素密度时采用高质量下采样，超过原生像素密度后关闭模糊插值，以真实像素代替虚假的柔化细节。离开图库可见区域的已缩放卡片会保留纯状态但释放 Canvas backing store，重新进入前再恢复；Canvas 同步绘制失败或异步丢失 2D context 时会显式播报，并回退到基于完整分辨率 `<img>` 的原生渲染，不会显示空白。大图使用同一渐进栅格路径；独立的轻量边缘层保持图像 outline 与大图 shadow，不参与位图重采样。切图和 resize 重新 fit，卡片 resize 则保留比例并重新约束平移；关闭、切图、pointer cancel 和 capture 丢失都会清理大图拖拽状态。销毁、重置、切图与关闭预览都会取消待执行帧、精修计时器并释放 Canvas backing store。
 
 进入动效只服务于低频模态空间建立：180ms opacity + `scale(.97→1)`，使用强 `ease-out`。高频选择只做 120ms 颜色、阴影和透明度过渡，滚轮/拖拽不加过渡。按钮按压为 `scale(.96)`；`prefers-reduced-motion` 移除位移动效，hover 只在精确指针设备启用。
 
@@ -132,6 +132,7 @@ WebSocket 事件 `aaalice-image-picker-open` 与 `aaalice-image-picker-close` �
 | Python tensor/schema | 非幂等 V3 schema、输出顺序、batch、dtype/device、空批次和布局错误 |
 | JavaScript selection | 单选替换、多选切换、全选/清空、payload 排序、键盘网格移动、deadline |
 | JavaScript preview | 鼠标锚点不变量、1–8 倍范围、平移边界、wheel delta 归一化、双端边界滚动让渡、修饰键绕过、拖拽阈值和 reset |
+| JavaScript raster | fit 尺寸、设备像素比预算、原生像素平滑阈值，以及可见区域对应的源图裁切坐标 |
 | JavaScript security | GFM 结构、URL 协议策略、DOMPurify 显式 allowlist 静态约束 |
 | JavaScript lifecycle/i18n | 重复 open/close、恢复队列、清理，以及三语键集合/空值 |
 

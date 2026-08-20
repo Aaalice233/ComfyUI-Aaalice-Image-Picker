@@ -1,9 +1,10 @@
 import { api } from "../../scripts/api.js";
 import { t } from "./i18n.js";
 import { renderSafeMarkdown } from "./lib/markdown.js";
+import { INTERACTIVE_CANVAS_PIXELS, MAX_CANVAS_PIXELS, MAX_CARD_CANVAS_PIXELS, canvasBackingSize, fitImage, sharedCanvasPixelBudget, shouldSmoothImage, visibleImageRegion } from "./lib/raster.js";
 import { SessionRegistry } from "./lib/session_registry.js";
 import { buildDraftPayload, buildResponsePayload, formatDuration, moveGridFocus, secondsRemaining, selectAll, toggleSelection } from "./lib/state.js";
-import { MAX_SCALE, MIN_SCALE, clampPan, exceedsDragThreshold, galleryScrollDelta, panBy, resetZoom, shouldCaptureCardWheel, wheelZoomScale, zoomAt } from "./lib/zoom.js";
+import { MAX_SCALE, MIN_SCALE, clampPan, exceedsDragThreshold, galleryScrollDelta, panBy, resetZoom, shouldCaptureCardWheel, wheelZoomScale, zoomAt, zoomStateChanged } from "./lib/zoom.js";
 
 const TERMINAL_SESSION_ERRORS = new Set(["session_not_found", "session_expired", "session_finished"]);
 
@@ -83,6 +84,43 @@ function focusable(root) {
 	return [...root.querySelectorAll('button:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])')].filter((item) => !item.hidden && !item.closest("[inert]") && item.getClientRects().length > 0);
 }
 
+function drawViewportRaster(canvas, image, state, bounds, maxPixels = MAX_CANVAS_PIXELS) {
+	const { width, height } = canvasBackingSize(bounds.viewportWidth, bounds.viewportHeight, window.devicePixelRatio || 1, maxPixels);
+	try {
+		canvas.style.width = `${bounds.viewportWidth}px`;
+		canvas.style.height = `${bounds.viewportHeight}px`;
+		if (canvas.width !== width || canvas.height !== height) {
+			canvas.width = width;
+			canvas.height = height;
+		}
+		const context = canvas.getContext("2d");
+		if (!context) return false;
+		const scaleX = width / bounds.viewportWidth;
+		const scaleY = height / bounds.viewportHeight;
+		context.setTransform(scaleX, 0, 0, scaleY, 0, 0);
+		context.clearRect(0, 0, bounds.viewportWidth, bounds.viewportHeight);
+		const region = visibleImageRegion(image.naturalWidth, image.naturalHeight, state, bounds);
+		if (!region) return true;
+		context.imageSmoothingEnabled = shouldSmoothImage(region, scaleX, scaleY);
+		context.imageSmoothingQuality = "high";
+		context.drawImage(
+			image,
+			region.source.x,
+			region.source.y,
+			region.source.width,
+			region.source.height,
+			region.destination.x,
+			region.destination.y,
+			region.destination.width,
+			region.destination.height,
+		);
+		return true;
+	} catch (error) {
+		if (error instanceof DOMException) return false;
+		throw error;
+	}
+}
+
 export class ImagePickerModal {
 	constructor(payload, clientId, callbacks = {}) {
 		this.payload = payload;
@@ -94,7 +132,11 @@ export class ImagePickerModal {
 		this.previewIndex = null;
 		this.zoom = resetZoom();
 		this.bounds = null;
-		this.cardViews = payload.images.map(() => ({ zoom: resetZoom(), bounds: null }));
+		this.previewFitScale = 1;
+		this.previewRasterFailed = false;
+		this.previewFrame = null;
+		this.previewRefineTimer = null;
+		this.cardViews = payload.images.map(() => ({ zoom: resetZoom(), bounds: null, drawFrame: null, refineTimer: null, visible: true, rasterFailed: false }));
 		this.cardPointer = null;
 		this.suppressedCardClick = null;
 		this.previousFocus = document.activeElement;
@@ -165,6 +207,8 @@ export class ImagePickerModal {
 		});
 		this.cardButtons = [];
 		this.cardImages = [];
+		this.cardCanvases = [];
+		this.cardImageFrames = [];
 		this.cardZoomValues = [];
 		this.cards = this.payload.images.map((descriptor, index) => this.buildCard(descriptor, index));
 		this.gallery.append(...this.cards);
@@ -174,6 +218,10 @@ export class ImagePickerModal {
 			for (const entry of entries) this.refreshCardBounds(Number(entry.target.dataset.aaipIndex));
 		});
 		this.cardButtons.forEach((item) => this.cardResizeObserver.observe(item));
+		this.cardVisibilityObserver = new IntersectionObserver((entries) => {
+			for (const entry of entries) this.setCardVisible(Number(entry.target.dataset.aaipIndex), entry.isIntersecting);
+		}, { root: this.gallery, rootMargin: "200px 0px" });
+		this.cards.forEach((item) => this.cardVisibilityObserver.observe(item));
 		return this.content;
 	}
 
@@ -194,7 +242,7 @@ export class ImagePickerModal {
 	}
 
 	buildCard(descriptor, index) {
-		const card = el("article", "aaip-card", { role: "listitem" });
+		const card = el("article", "aaip-card", { role: "listitem", "data-aaip-index": index });
 		const select = el("button", "aaip-card-select", {
 			type: "button",
 			"aria-pressed": "false",
@@ -204,10 +252,16 @@ export class ImagePickerModal {
 			tabindex: index === this.focusedIndex ? "0" : "-1",
 		});
 		const image = el("img", "aaip-thumbnail", { alt: "", loading: "lazy", decoding: "async", src: imageUrl(descriptor), draggable: "false" });
+		const canvas = el("canvas", "aaip-card-raster", { "aria-hidden": "true", hidden: "" });
+		const imageFrame = el("span", "aaip-card-image-frame", { "aria-hidden": "true", hidden: "" });
 		const failed = el("span", "aaip-image-failed", { hidden: "" });
 		failed.textContent = t("status.imageFailed");
 		image.addEventListener("load", () => this.refreshCardBounds(index), { signal: this.abort.signal });
-		image.addEventListener("error", () => { image.hidden = true; failed.hidden = false; }, { signal: this.abort.signal });
+		image.addEventListener("error", () => { image.hidden = true; canvas.hidden = true; failed.hidden = false; }, { signal: this.abort.signal });
+		canvas.addEventListener("contextlost", (event) => {
+			event.preventDefault();
+			if (this.cardViews[index].zoom.scale > MIN_SCALE) this.useCardImageFallback(index);
+		}, { signal: this.abort.signal });
 		const shade = el("span", "aaip-selection-shade", { "aria-hidden": "true" });
 		shade.innerHTML = ICONS.check;
 		const number = el("span", "aaip-image-number", { "aria-hidden": "true" });
@@ -215,7 +269,7 @@ export class ImagePickerModal {
 		const zoomValue = el("span", "aaip-card-zoom-value", { "aria-hidden": "true", hidden: "" });
 		const zoomCue = el("span", "aaip-card-zoom-cue", { "aria-hidden": "true" });
 		zoomCue.textContent = t("cardZoom.hint");
-		select.append(image, failed, shade, number, zoomValue, zoomCue);
+		select.append(image, canvas, imageFrame, failed, shade, number, zoomValue, zoomCue);
 		select.addEventListener("click", (event) => this.onCardClick(event, index), { signal: this.abort.signal });
 		select.addEventListener("focus", () => { this.focusedIndex = index; this.updateRovingTabIndex(); }, { signal: this.abort.signal });
 		select.addEventListener("wheel", (event) => this.onCardWheel(event, index), { passive: false, signal: this.abort.signal });
@@ -230,6 +284,8 @@ export class ImagePickerModal {
 		card.append(select, expand);
 		this.cardButtons[index] = select;
 		this.cardImages[index] = image;
+		this.cardCanvases[index] = canvas;
+		this.cardImageFrames[index] = imageFrame;
 		this.cardZoomValues[index] = zoomValue;
 		return card;
 	}
@@ -279,8 +335,10 @@ export class ImagePickerModal {
 		this.previewStage = el("div", "aaip-preview-stage");
 		this.previewLoading = el("span", "aaip-preview-loading");
 		this.previewLoading.textContent = t("preview.loading");
-		this.previewImage = el("img", "aaip-preview-image", { alt: "", draggable: "false" });
-		this.previewStage.append(this.previewLoading, this.previewImage);
+		this.previewCanvas = el("canvas", "aaip-preview-canvas", { "aria-hidden": "true", hidden: "" });
+		this.previewImageFrame = el("span", "aaip-preview-image-frame", { "aria-hidden": "true", hidden: "" });
+		this.previewImage = el("img", "aaip-preview-source", { alt: "", draggable: "false" });
+		this.previewStage.append(this.previewLoading, this.previewCanvas, this.previewImageFrame, this.previewImage);
 		const hint = el("div", "aaip-preview-hint");
 		hint.textContent = t("shortcut.preview");
 		this.preview.append(toolbar, this.previewStage, hint);
@@ -293,12 +351,17 @@ export class ImagePickerModal {
 		this.zoomReset.addEventListener("click", () => this.resetPreviewZoom(), { signal: this.abort.signal });
 		this.previewSelect.addEventListener("click", () => this.toggle(this.previewIndex), { signal: this.abort.signal });
 		this.previewImage.addEventListener("load", () => this.fitPreview(), { signal: this.abort.signal });
-		this.previewImage.addEventListener("error", () => { this.previewLoading.hidden = false; this.previewLoading.textContent = t("status.imageFailed"); }, { signal: this.abort.signal });
+		this.previewImage.addEventListener("error", () => { this.previewCanvas.hidden = true; this.previewLoading.hidden = false; this.previewLoading.textContent = t("status.imageFailed"); }, { signal: this.abort.signal });
+		this.previewCanvas.addEventListener("contextlost", (event) => {
+			event.preventDefault();
+			if (this.previewIndex != null) this.usePreviewImageFallback();
+		}, { signal: this.abort.signal });
 		this.previewStage.addEventListener("wheel", (event) => this.onWheel(event), { passive: false, signal: this.abort.signal });
 		this.previewStage.addEventListener("pointerdown", (event) => this.onPointerDown(event), { signal: this.abort.signal });
 		this.previewStage.addEventListener("pointermove", (event) => this.onPointerMove(event), { signal: this.abort.signal });
 		this.previewStage.addEventListener("pointerup", (event) => this.onPointerUp(event), { signal: this.abort.signal });
 		this.previewStage.addEventListener("pointercancel", (event) => this.onPointerUp(event), { signal: this.abort.signal });
+		this.previewStage.addEventListener("lostpointercapture", (event) => this.onPreviewPointerCaptureLost(event), { signal: this.abort.signal });
 		return this.preview;
 	}
 
@@ -317,14 +380,16 @@ export class ImagePickerModal {
 		const style = getComputedStyle(select);
 		const viewportWidth = Math.max(1, select.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight));
 		const viewportHeight = Math.max(1, select.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom));
+		const fitted = fitImage(image.naturalWidth, image.naturalHeight, viewportWidth, viewportHeight);
+		view.fitScale = fitted.scale;
 		view.bounds = {
 			viewportWidth,
 			viewportHeight,
-			imageWidth: Math.max(1, image.offsetWidth),
-			imageHeight: Math.max(1, image.offsetHeight),
+			imageWidth: fitted.imageWidth,
+			imageHeight: fitted.imageHeight,
 		};
 		view.zoom = clampPan(view.zoom, view.bounds);
-		this.updateCardZoomTransform(index);
+		this.updateCardZoomDisplay(index);
 	}
 
 	onGalleryWheel(event) {
@@ -359,8 +424,10 @@ export class ImagePickerModal {
 		const rect = this.cardButtons[index].getBoundingClientRect();
 		const anchor = { x: event.clientX - rect.left - rect.width / 2, y: event.clientY - rect.top - rect.height / 2 };
 		const scale = wheelZoomScale(view.zoom.scale, event.deltaY, event.deltaMode, view.bounds.viewportHeight);
-		view.zoom = zoomAt(view.zoom, scale, anchor, view.bounds);
-		this.updateCardZoomTransform(index);
+		const nextZoom = zoomAt(view.zoom, scale, anchor, view.bounds);
+		if (!zoomStateChanged(view.zoom, nextZoom)) return;
+		view.zoom = nextZoom;
+		this.updateCardZoomDisplay(index);
 	}
 
 	onCardPointerDown(event, index) {
@@ -392,9 +459,11 @@ export class ImagePickerModal {
 		}
 		event.preventDefault();
 		const view = this.cardViews[pointer.index];
-		view.zoom = panBy(view.zoom, { x: point.x - pointer.last.x, y: point.y - pointer.last.y }, view.bounds);
+		const nextZoom = panBy(view.zoom, { x: point.x - pointer.last.x, y: point.y - pointer.last.y }, view.bounds);
 		pointer.last = point;
-		this.applyCardZoomTransform(pointer.index);
+		if (!zoomStateChanged(view.zoom, nextZoom)) return;
+		view.zoom = nextZoom;
+		this.scheduleCardRaster(pointer.index);
 	}
 
 	onCardPointerUp(event) {
@@ -433,45 +502,192 @@ export class ImagePickerModal {
 		const view = this.cardViews[index];
 		if (!view.bounds) this.refreshCardBounds(index);
 		if (!view.bounds) return;
-		view.zoom = zoomAt(view.zoom, requestedScale, { x: 0, y: 0 }, view.bounds);
-		this.updateCardZoomTransform(index);
+		const nextZoom = zoomAt(view.zoom, requestedScale, { x: 0, y: 0 }, view.bounds);
+		if (!zoomStateChanged(view.zoom, nextZoom)) return;
+		view.zoom = nextZoom;
+		this.updateCardZoomDisplay(index);
 		if (announce) this.announce(t("cardZoom.changed", { percent: Math.round(view.zoom.scale * 100) }));
 	}
 
 	panCard(index, delta) {
 		const view = this.cardViews[index];
 		if (!view.bounds || view.zoom.scale <= MIN_SCALE) return;
-		const previous = view.zoom;
-		view.zoom = panBy(view.zoom, delta, view.bounds);
-		this.applyCardZoomTransform(index);
-		if (view.zoom.x !== previous.x || view.zoom.y !== previous.y) this.announce(t("cardZoom.panned"));
+		const nextZoom = panBy(view.zoom, delta, view.bounds);
+		if (!zoomStateChanged(view.zoom, nextZoom)) return;
+		view.zoom = nextZoom;
+		this.scheduleCardRaster(index);
+		this.announce(t("cardZoom.panned"));
 	}
 
 	resetCardZoom(index, announce = false) {
 		const view = this.cardViews[index];
 		if (!view || view.zoom.scale === MIN_SCALE) return;
 		view.zoom = resetZoom();
-		this.updateCardZoomTransform(index);
+		this.updateCardZoomDisplay(index);
 		if (announce) this.announce(t("cardZoom.changed", { percent: 100 }));
 	}
 
-	applyCardZoomTransform(index) {
+	updateCardImageFrame(index) {
 		const view = this.cardViews[index];
-		const image = this.cardImages[index];
-		if (!view || !image) return;
-		image.style.transform = `translate3d(${view.zoom.x}px, ${view.zoom.y}px, 0) scale(${view.zoom.scale})`;
+		const frame = this.cardImageFrames[index];
+		if (!view.bounds || !view.visible || view.zoom.scale <= MIN_SCALE) {
+			frame.hidden = true;
+			return;
+		}
+		frame.hidden = false;
+		frame.style.width = `${view.bounds.imageWidth * view.zoom.scale}px`;
+		frame.style.height = `${view.bounds.imageHeight * view.zoom.scale}px`;
+		frame.style.transform = `translate3d(calc(-50% + ${view.zoom.x}px), calc(-50% + ${view.zoom.y}px), 0)`;
 	}
 
-	updateCardZoomTransform(index) {
+	releaseCardRaster(index) {
+		const view = this.cardViews[index];
+		if (view.drawFrame != null) cancelAnimationFrame(view.drawFrame);
+		if (view.refineTimer != null) window.clearTimeout(view.refineTimer);
+		view.drawFrame = null;
+		view.refineTimer = null;
+		const canvas = this.cardCanvases[index];
+		canvas.hidden = true;
+		canvas.width = 0;
+		canvas.height = 0;
+		this.cardImageFrames[index].hidden = true;
+	}
+
+	applyCardImageFallback(index) {
+		const view = this.cardViews[index];
+		const image = this.cardImages[index];
+		this.cards[index].classList.add("aaip-raster-fallback");
+		const effectiveScale = view.fitScale * view.zoom.scale;
+		image.style.width = `${image.naturalWidth}px`;
+		image.style.height = `${image.naturalHeight}px`;
+		image.style.transform = `translate3d(calc(-50% + ${view.zoom.x}px), calc(-50% + ${view.zoom.y}px), 0) scale(${effectiveScale})`;
+	}
+
+	useCardImageFallback(index) {
+		const view = this.cardViews[index];
+		const previousCount = this.visibleZoomedCardCount();
+		if (!view.rasterFailed) {
+			console.error("[Aaalice Image Picker] Canvas rendering unavailable; using the native image fallback.");
+			if (this.live) this.announce(t("status.rasterFallback"));
+		}
+		view.rasterFailed = true;
+		this.releaseCardRaster(index);
+		this.cards[index].classList.add("aaip-raster-fallback");
+		this.applyCardImageFallback(index);
+		this.updateCardImageFrame(index);
+		this.rebalanceCardRasters(previousCount);
+	}
+
+	clearCardImageFallback(index) {
+		this.cards[index].classList.remove("aaip-raster-fallback");
+		this.cardImages[index].removeAttribute("style");
+	}
+
+	visibleZoomedCardCount() {
+		return this.cardViews.filter((view) => view.visible && view.zoom.scale > MIN_SCALE && !view.rasterFailed).length;
+	}
+
+	cardRasterBudget() {
+		return sharedCanvasPixelBudget(MAX_CARD_CANVAS_PIXELS, this.visibleZoomedCardCount());
+	}
+
+	rebalanceCardRasters(previousCount) {
+		if (previousCount === this.visibleZoomedCardCount()) return;
+		this.cardViews.forEach((view, index) => {
+			if (view.visible && view.zoom.scale > MIN_SCALE && !view.rasterFailed) this.scheduleCardRaster(index);
+		});
+	}
+
+	renderCardRaster(index, maxPixels = this.cardRasterBudget()) {
+		const view = this.cardViews[index];
+		const canvas = this.cardCanvases[index];
+		const image = this.cardImages[index];
+		if (!view?.bounds || !view.visible || canvas.hidden || !image.complete || image.naturalWidth <= 0) return;
+		this.updateCardImageFrame(index);
+		if (view.rasterFailed) {
+			this.applyCardImageFallback(index);
+			return;
+		}
+		if (!drawViewportRaster(canvas, image, view.zoom, view.bounds, maxPixels)) this.useCardImageFallback(index);
+	}
+
+	scheduleCardRefinement(index) {
+		const view = this.cardViews[index];
+		window.clearTimeout(view.refineTimer);
+		view.refineTimer = window.setTimeout(() => {
+			view.refineTimer = null;
+			if (view.drawFrame != null) cancelAnimationFrame(view.drawFrame);
+			view.drawFrame = null;
+			if (!this.destroyed && view.visible && view.zoom.scale > MIN_SCALE && !view.rasterFailed) this.renderCardRaster(index);
+		}, 80);
+	}
+
+	scheduleCardRaster(index) {
+		const view = this.cardViews[index];
+		if (!view?.bounds || !view.visible) return;
+		this.updateCardImageFrame(index);
+		if (view.rasterFailed) {
+			this.applyCardImageFallback(index);
+			return;
+		}
+		this.scheduleCardRefinement(index);
+		if (view.drawFrame != null) return;
+		view.drawFrame = requestAnimationFrame(() => {
+			view.drawFrame = null;
+			if (!this.destroyed) this.renderCardRaster(index, Math.min(INTERACTIVE_CANVAS_PIXELS, this.cardRasterBudget()));
+		});
+	}
+
+	setCardVisible(index, visible) {
+		const view = this.cardViews[index];
+		if (!view || view.visible === visible) return;
+		const previousCount = this.visibleZoomedCardCount();
+		view.visible = visible;
+		if (view.zoom.scale > MIN_SCALE && !visible) {
+			this.releaseCardRaster(index);
+			this.cards[index].classList.add("aaip-card-raster-suspended");
+		} else if (view.zoom.scale > MIN_SCALE && view.rasterFailed) {
+			this.applyCardImageFallback(index);
+			this.cards[index].classList.remove("aaip-card-raster-suspended");
+		} else if (view.zoom.scale > MIN_SCALE) {
+			this.cardCanvases[index].hidden = false;
+			this.renderCardRaster(index, Math.min(INTERACTIVE_CANVAS_PIXELS, this.cardRasterBudget()));
+			if (!view.rasterFailed) this.scheduleCardRefinement(index);
+			this.cards[index].classList.remove("aaip-card-raster-suspended");
+		}
+		this.rebalanceCardRasters(previousCount);
+	}
+
+	updateCardZoomDisplay(index) {
 		const view = this.cardViews[index];
 		if (!view || !this.cardImages[index]) return;
 		const zoomed = view.zoom.scale > MIN_SCALE;
+		const wasZoomed = this.cards[index].classList.contains("aaip-card-zoomed");
+		const currentCount = this.visibleZoomedCardCount();
+		const previousCount = view.visible && zoomed !== wasZoomed ? currentCount + (wasZoomed ? 1 : -1) : currentCount;
 		const percent = Math.round(view.zoom.scale * 100);
-		this.applyCardZoomTransform(index);
+		if (zoomed && !view.visible) {
+			this.releaseCardRaster(index);
+			this.cards[index].classList.add("aaip-card-raster-suspended");
+		} else if (zoomed && view.rasterFailed) {
+			this.applyCardImageFallback(index);
+		} else if (zoomed) {
+			this.cardCanvases[index].hidden = false;
+			if (!wasZoomed) {
+				this.renderCardRaster(index, Math.min(INTERACTIVE_CANVAS_PIXELS, this.cardRasterBudget()));
+				if (!view.rasterFailed) this.scheduleCardRefinement(index);
+			} else this.scheduleCardRaster(index);
+		} else {
+			this.releaseCardRaster(index);
+			this.clearCardImageFallback(index);
+			this.cards[index].classList.remove("aaip-card-raster-suspended");
+		}
 		this.cards[index].classList.toggle("aaip-card-zoomed", zoomed);
 		this.cardZoomValues[index].hidden = !zoomed;
 		this.cardZoomValues[index].textContent = t("cardZoom.value", { number: String(index + 1).padStart(2, "0"), percent });
 		this.cardButtons[index].setAttribute("aria-description", t("aria.cardZoom", { percent }));
+		this.updateCardImageFrame(index);
+		this.rebalanceCardRasters(previousCount);
 	}
 
 	toggle(index) {
@@ -654,6 +870,7 @@ export class ImagePickerModal {
 		if (this.previewIndex == null) return;
 		const index = this.previewIndex;
 		this.previewIndex = null;
+		this.clearPreviewRaster();
 		this.preview.hidden = true;
 		for (const element of [this.header, this.content, this.footer]) element.inert = false;
 		this.dialog.classList.remove("aaip-preview-open");
@@ -668,29 +885,25 @@ export class ImagePickerModal {
 	loadPreviewImage() {
 		this.zoom = resetZoom();
 		this.bounds = null;
-		this.previewImage.classList.remove("aaip-loaded");
+		this.clearPreviewRaster();
 		this.previewLoading.hidden = false;
 		this.previewLoading.textContent = t("preview.loading");
-		this.previewImage.removeAttribute("style");
 		this.previewImage.src = imageUrl(this.payload.images[this.previewIndex]);
 		this.previewPosition.textContent = t("preview.position", { number: this.previewIndex + 1, total: this.payload.image_count });
 		this.updatePreviewSelection();
-		this.updateZoomTransform();
+		this.updateZoomDisplay();
 	}
 
 	fitPreview() {
 		if (this.previewIndex == null) return;
 		const rect = this.previewStage.getBoundingClientRect();
-		const fit = Math.min(rect.width / this.previewImage.naturalWidth, rect.height / this.previewImage.naturalHeight);
-		const width = Math.max(1, this.previewImage.naturalWidth * fit);
-		const height = Math.max(1, this.previewImage.naturalHeight * fit);
-		this.previewImage.style.width = `${width}px`;
-		this.previewImage.style.height = `${height}px`;
-		this.bounds = { viewportWidth: rect.width, viewportHeight: rect.height, imageWidth: width, imageHeight: height };
+		const fitted = fitImage(this.previewImage.naturalWidth, this.previewImage.naturalHeight, rect.width, rect.height, true);
+		this.previewFitScale = fitted.scale;
+		this.bounds = { viewportWidth: rect.width, viewportHeight: rect.height, imageWidth: fitted.imageWidth, imageHeight: fitted.imageHeight };
 		this.zoom = resetZoom();
-		this.previewLoading.hidden = true;
-		this.previewImage.classList.add("aaip-loaded");
-		this.updateZoomTransform();
+		if (!this.previewRasterFailed) this.previewCanvas.hidden = false;
+		this.updateZoomDisplay(false);
+		this.schedulePreviewRaster(false);
 	}
 
 	updatePreviewSelection() {
@@ -704,13 +917,17 @@ export class ImagePickerModal {
 
 	zoomCentered(scale) {
 		if (!this.bounds) return;
-		this.zoom = zoomAt(this.zoom, scale, { x: 0, y: 0 }, this.bounds);
-		this.updateZoomTransform();
+		const nextZoom = zoomAt(this.zoom, scale, { x: 0, y: 0 }, this.bounds);
+		if (!zoomStateChanged(this.zoom, nextZoom)) return;
+		this.zoom = nextZoom;
+		this.updateZoomDisplay();
 	}
 
 	resetPreviewZoom() {
-		this.zoom = resetZoom();
-		this.updateZoomTransform();
+		const nextZoom = resetZoom();
+		if (!zoomStateChanged(this.zoom, nextZoom)) return;
+		this.zoom = nextZoom;
+		this.updateZoomDisplay();
 	}
 
 	onWheel(event) {
@@ -719,12 +936,18 @@ export class ImagePickerModal {
 		const rect = this.previewStage.getBoundingClientRect();
 		const anchor = { x: event.clientX - rect.left - rect.width / 2, y: event.clientY - rect.top - rect.height / 2 };
 		const scale = wheelZoomScale(this.zoom.scale, event.deltaY, event.deltaMode, this.bounds.viewportHeight);
-		this.zoom = zoomAt(this.zoom, scale, anchor, this.bounds);
-		this.updateZoomTransform();
+		const nextZoom = zoomAt(this.zoom, scale, anchor, this.bounds);
+		if (!zoomStateChanged(this.zoom, nextZoom)) return;
+		this.zoom = nextZoom;
+		this.updateZoomDisplay();
 	}
 
 	onPointerDown(event) {
 		if (!this.bounds || this.zoom.scale <= MIN_SCALE || event.button !== 0) return;
+		if (this.pointer) {
+			event.preventDefault();
+			return;
+		}
 		this.pointer = { id: event.pointerId, x: event.clientX, y: event.clientY };
 		this.previewStage.setPointerCapture(event.pointerId);
 		this.previewStage.classList.add("aaip-dragging");
@@ -735,18 +958,121 @@ export class ImagePickerModal {
 		const delta = { x: event.clientX - this.pointer.x, y: event.clientY - this.pointer.y };
 		this.pointer.x = event.clientX;
 		this.pointer.y = event.clientY;
-		this.zoom = panBy(this.zoom, delta, this.bounds);
-		this.updateZoomTransform();
+		const nextZoom = panBy(this.zoom, delta, this.bounds);
+		if (!zoomStateChanged(this.zoom, nextZoom)) return;
+		this.zoom = nextZoom;
+		this.schedulePreviewRaster();
 	}
 
 	onPointerUp(event) {
 		if (!this.pointer || this.pointer.id !== event.pointerId) return;
+		this.clearPreviewPointer();
+		this.schedulePreviewRaster(false);
+	}
+
+	onPreviewPointerCaptureLost(event) {
+		if (this.pointer?.id === event.pointerId) this.clearPreviewPointer();
+	}
+
+	clearPreviewPointer() {
+		const pointer = this.pointer;
 		this.pointer = null;
+		if (pointer && this.previewStage.hasPointerCapture(pointer.id)) this.previewStage.releasePointerCapture(pointer.id);
 		this.previewStage.classList.remove("aaip-dragging");
 	}
 
-	updateZoomTransform() {
-		this.previewImage.style.transform = `translate3d(calc(-50% + ${this.zoom.x}px), calc(-50% + ${this.zoom.y}px), 0) scale(${this.zoom.scale})`;
+	updatePreviewImageFrame() {
+		if (!this.bounds || this.previewIndex == null) {
+			this.previewImageFrame.hidden = true;
+			return;
+		}
+		this.previewImageFrame.hidden = false;
+		this.previewImageFrame.style.width = `${this.bounds.imageWidth * this.zoom.scale}px`;
+		this.previewImageFrame.style.height = `${this.bounds.imageHeight * this.zoom.scale}px`;
+		this.previewImageFrame.style.transform = `translate3d(calc(-50% + ${this.zoom.x}px), calc(-50% + ${this.zoom.y}px), 0)`;
+	}
+
+	applyPreviewImageFallback() {
+		this.previewStage.classList.add("aaip-raster-fallback");
+		this.previewLoading.hidden = true;
+		const effectiveScale = this.previewFitScale * this.zoom.scale;
+		this.previewImage.style.width = `${this.previewImage.naturalWidth}px`;
+		this.previewImage.style.height = `${this.previewImage.naturalHeight}px`;
+		this.previewImage.style.transform = `translate3d(calc(-50% + ${this.zoom.x}px), calc(-50% + ${this.zoom.y}px), 0) scale(${effectiveScale})`;
+	}
+
+	usePreviewImageFallback() {
+		if (!this.previewRasterFailed) {
+			console.error("[Aaalice Image Picker] Canvas rendering unavailable; using the native image fallback.");
+			if (this.live) this.announce(t("status.rasterFallback"));
+		}
+		this.previewRasterFailed = true;
+		this.releasePreviewCanvas();
+		this.previewStage.classList.add("aaip-raster-fallback");
+		this.applyPreviewImageFallback();
+		this.updatePreviewImageFrame();
+		this.previewLoading.hidden = true;
+	}
+
+	renderPreviewRaster(maxPixels = MAX_CANVAS_PIXELS) {
+		if (!this.bounds || !this.previewImage.complete || this.previewImage.naturalWidth <= 0) return;
+		this.updatePreviewImageFrame();
+		if (this.previewRasterFailed) {
+			this.applyPreviewImageFallback();
+			return;
+		}
+		if (!drawViewportRaster(this.previewCanvas, this.previewImage, this.zoom, this.bounds, maxPixels)) {
+			this.usePreviewImageFallback();
+			return;
+		}
+		this.previewLoading.hidden = true;
+	}
+
+	schedulePreviewRaster(interactive = true) {
+		if (!this.bounds) return;
+		if (this.previewRasterFailed) {
+			this.applyPreviewImageFallback();
+			return;
+		}
+		window.clearTimeout(this.previewRefineTimer);
+		if (interactive) {
+			this.previewRefineTimer = window.setTimeout(() => {
+				this.previewRefineTimer = null;
+				if (this.previewFrame != null) cancelAnimationFrame(this.previewFrame);
+				this.previewFrame = null;
+				if (!this.destroyed && this.previewIndex != null) this.renderPreviewRaster();
+			}, 80);
+		} else this.previewRefineTimer = null;
+		this.previewFramePixels = interactive ? INTERACTIVE_CANVAS_PIXELS : MAX_CANVAS_PIXELS;
+		if (this.previewFrame != null) return;
+		this.previewFrame = requestAnimationFrame(() => {
+			this.previewFrame = null;
+			if (!this.destroyed && this.previewIndex != null) this.renderPreviewRaster(this.previewFramePixels);
+		});
+	}
+
+	releasePreviewCanvas() {
+		if (this.previewFrame != null) cancelAnimationFrame(this.previewFrame);
+		window.clearTimeout(this.previewRefineTimer);
+		this.previewFrame = null;
+		this.previewRefineTimer = null;
+		this.previewCanvas.hidden = true;
+		this.previewCanvas.width = 0;
+		this.previewCanvas.height = 0;
+		this.previewImageFrame.hidden = true;
+	}
+
+	clearPreviewRaster() {
+		this.clearPreviewPointer();
+		this.releasePreviewCanvas();
+		this.previewStage.classList.remove("aaip-raster-fallback");
+		this.previewImageFrame.removeAttribute("style");
+		this.previewImage.removeAttribute("style");
+	}
+
+	updateZoomDisplay(render = true) {
+		this.updatePreviewImageFrame();
+		if (render) this.schedulePreviewRaster();
 		this.zoomValue.textContent = t("preview.zoom", { percent: Math.round(this.zoom.scale * 100) });
 		this.zoomOut.disabled = this.busy || this.zoom.scale <= MIN_SCALE;
 		this.zoomIn.disabled = this.busy || this.zoom.scale >= MAX_SCALE;
@@ -770,7 +1096,10 @@ export class ImagePickerModal {
 		window.clearInterval(this.timer);
 		window.clearTimeout(this.draftTimer);
 		window.clearTimeout(this.suppressedCardClickTimer);
+		this.cardViews.forEach((_, index) => this.releaseCardRaster(index));
+		this.clearPreviewRaster();
 		this.cardResizeObserver?.disconnect();
+		this.cardVisibilityObserver?.disconnect();
 		this.abort.abort();
 		this.root.remove();
 		if (this.previousFocus instanceof HTMLElement && this.previousFocus.isConnected) this.previousFocus.focus();

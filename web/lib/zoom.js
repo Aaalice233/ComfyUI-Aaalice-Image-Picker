@@ -31,6 +31,10 @@ export function panBy(state, delta, bounds) {
 	return clampPan({ scale: state.scale, x: state.x + delta.x, y: state.y + delta.y }, bounds);
 }
 
+export function zoomStateChanged(previous, next) {
+	return previous.scale !== next.scale || previous.x !== next.x || previous.y !== next.y;
+}
+
 export function normalizeWheelDelta(delta, deltaMode = 0, viewportHeight = 800) {
 	return deltaMode === 1 ? delta * 16 : deltaMode === 2 ? delta * viewportHeight : delta;
 }
