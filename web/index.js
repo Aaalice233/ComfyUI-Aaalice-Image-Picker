@@ -1,6 +1,7 @@
 import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
-import { ensureI18n, t } from "./i18n.js";
+import { ensureI18n, t, tNodeOption } from "./i18n.js";
+import { installNodeOptionLabels } from "./lib/node_options.js";
 import { ImagePickerManager } from "./picker.js";
 
 const STYLE_ID = "aaalice-image-picker-styles";
@@ -52,6 +53,10 @@ async function recoverSessions() {
 
 app.registerExtension({
 	name: "ComfyUI.Aaalice.ImagePicker",
+
+	nodeCreated(node) {
+		if (installNodeOptionLabels(node, tNodeOption)) node.setDirtyCanvas(true, true);
+	},
 
 	async setup() {
 		installStyles();

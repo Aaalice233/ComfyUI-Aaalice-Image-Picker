@@ -53,3 +53,10 @@ export function t(path, values = {}) {
 	const text = roots.map((root) => read(root, path)).find((value) => typeof value === "string") || path;
 	return text.replace(/\{(\w+)\}/g, (_, key) => values[key] ?? `{${key}}`);
 }
+
+export function tNodeOption(inputName, value) {
+	const language = locale();
+	const path = `nodeDefs.AaaliceImagePicker.inputs.${inputName}.options.${value}`;
+	const roots = [catalog?.[language], language === "zh-TW" ? catalog?.zh : null, catalog?.en];
+	return roots.map((root) => read(root, path)).find((label) => typeof label === "string") || value;
+}

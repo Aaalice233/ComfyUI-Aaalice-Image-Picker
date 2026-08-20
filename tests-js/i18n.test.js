@@ -29,6 +29,19 @@ test("frontend literal translation keys exist in the main catalog", async () => 
 	for (const action of ["cancel", "submit_selected", "submit_all", "submit_first", "submit_last"]) assert.ok(keys.has(`timeoutAction.${action}`));
 });
 
+test("localized combo labels cover every backend value", async () => {
+	const expected = {
+		selection_mode: ["single", "multiple"],
+		timeout_action: ["cancel", "submit_selected", "submit_all", "submit_first", "submit_last"],
+	};
+	for (const language of languages) {
+		const node = (await load(language, "nodeDefs.json")).AaaliceImagePicker;
+		for (const [input, values] of Object.entries(expected)) {
+			assert.deepEqual(Object.keys(node.inputs[input].options), values, `${language}:${input}`);
+		}
+	}
+});
+
 for (const file of ["main.json", "nodeDefs.json"]) {
 	test(`${file} has identical non-empty keys in en, zh, and zh-TW`, async () => {
 		const catalogs = await Promise.all(languages.map((language) => load(language, file)));
