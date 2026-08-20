@@ -3,7 +3,7 @@ import { t } from "./i18n.js";
 import { renderSafeMarkdown } from "./lib/markdown.js";
 import { SessionRegistry } from "./lib/session_registry.js";
 import { buildDraftPayload, buildResponsePayload, formatDuration, moveGridFocus, secondsRemaining, selectAll, toggleSelection } from "./lib/state.js";
-import { MAX_SCALE, MIN_SCALE, panBy, resetZoom, zoomAt } from "./lib/zoom.js";
+import { MAX_SCALE, MIN_SCALE, clampPan, exceedsDragThreshold, galleryScrollDelta, panBy, resetZoom, shouldCaptureCardWheel, wheelZoomScale, zoomAt } from "./lib/zoom.js";
 
 const TERMINAL_SESSION_ERRORS = new Set(["session_not_found", "session_expired", "session_finished"]);
 
@@ -94,6 +94,9 @@ export class ImagePickerModal {
 		this.previewIndex = null;
 		this.zoom = resetZoom();
 		this.bounds = null;
+		this.cardViews = payload.images.map(() => ({ zoom: resetZoom(), bounds: null }));
+		this.cardPointer = null;
+		this.suppressedCardClick = null;
 		this.previousFocus = document.activeElement;
 		this.destroyed = false;
 		this.busy = false;
@@ -151,14 +154,26 @@ export class ImagePickerModal {
 	buildContent() {
 		this.content = el("div", `aaip-content${this.payload.instructions.trim() ? " aaip-has-instructions" : ""}`);
 		if (this.payload.instructions.trim()) this.content.append(this.buildInstructions());
+		const helpId = `aaip-gallery-help-${this.payload.session_id}`;
+		this.galleryHelp = el("p", "aaip-sr-only", { id: helpId });
+		this.galleryHelp.textContent = t("aria.galleryHelp");
+		this.content.append(this.galleryHelp);
 		this.gallery = el("div", `aaip-gallery aaip-count-${Math.min(this.payload.image_count, 5)}`, {
 			role: "list",
 			"aria-label": t("aria.gallery"),
+			"aria-describedby": helpId,
 		});
 		this.cardButtons = [];
+		this.cardImages = [];
+		this.cardZoomValues = [];
 		this.cards = this.payload.images.map((descriptor, index) => this.buildCard(descriptor, index));
 		this.gallery.append(...this.cards);
+		this.gallery.addEventListener("wheel", (event) => this.onGalleryWheel(event), { passive: false, signal: this.abort.signal });
 		this.content.append(this.gallery);
+		this.cardResizeObserver = new ResizeObserver((entries) => {
+			for (const entry of entries) this.refreshCardBounds(Number(entry.target.dataset.aaipIndex));
+		});
+		this.cardButtons.forEach((item) => this.cardResizeObserver.observe(item));
 		return this.content;
 	}
 
@@ -184,24 +199,38 @@ export class ImagePickerModal {
 			type: "button",
 			"aria-pressed": "false",
 			"aria-label": t("aria.image", { number: index + 1 }),
+			"aria-description": t("aria.cardZoom", { percent: 100 }),
+			"data-aaip-index": index,
 			tabindex: index === this.focusedIndex ? "0" : "-1",
 		});
 		const image = el("img", "aaip-thumbnail", { alt: "", loading: "lazy", decoding: "async", src: imageUrl(descriptor), draggable: "false" });
 		const failed = el("span", "aaip-image-failed", { hidden: "" });
 		failed.textContent = t("status.imageFailed");
+		image.addEventListener("load", () => this.refreshCardBounds(index), { signal: this.abort.signal });
 		image.addEventListener("error", () => { image.hidden = true; failed.hidden = false; }, { signal: this.abort.signal });
 		const shade = el("span", "aaip-selection-shade", { "aria-hidden": "true" });
 		shade.innerHTML = ICONS.check;
 		const number = el("span", "aaip-image-number", { "aria-hidden": "true" });
 		number.textContent = String(index + 1).padStart(2, "0");
-		select.append(image, failed, shade, number);
-		select.addEventListener("click", () => this.toggle(index), { signal: this.abort.signal });
+		const zoomValue = el("span", "aaip-card-zoom-value", { "aria-hidden": "true", hidden: "" });
+		const zoomCue = el("span", "aaip-card-zoom-cue", { "aria-hidden": "true" });
+		zoomCue.textContent = t("cardZoom.hint");
+		select.append(image, failed, shade, number, zoomValue, zoomCue);
+		select.addEventListener("click", (event) => this.onCardClick(event, index), { signal: this.abort.signal });
 		select.addEventListener("focus", () => { this.focusedIndex = index; this.updateRovingTabIndex(); }, { signal: this.abort.signal });
+		select.addEventListener("wheel", (event) => this.onCardWheel(event, index), { passive: false, signal: this.abort.signal });
+		select.addEventListener("pointerdown", (event) => this.onCardPointerDown(event, index), { signal: this.abort.signal });
+		select.addEventListener("pointermove", (event) => this.onCardPointerMove(event), { signal: this.abort.signal });
+		select.addEventListener("pointerup", (event) => this.onCardPointerUp(event), { signal: this.abort.signal });
+		select.addEventListener("pointercancel", (event) => this.onCardPointerUp(event), { signal: this.abort.signal });
+		select.addEventListener("lostpointercapture", (event) => this.onCardPointerCaptureLost(event), { signal: this.abort.signal });
 
 		const expand = button("aaip-expand", t("button.enlarge"), ICONS.expand);
 		expand.addEventListener("click", () => this.openPreview(index), { signal: this.abort.signal });
 		card.append(select, expand);
 		this.cardButtons[index] = select;
+		this.cardImages[index] = image;
+		this.cardZoomValues[index] = zoomValue;
 		return card;
 	}
 
@@ -210,7 +239,7 @@ export class ImagePickerModal {
 		this.footer = footer;
 		const summary = el("div", "aaip-summary");
 		this.selectionCount = el("strong", "aaip-selection-count");
-		const shortcut = el("span", "aaip-shortcut");
+		const shortcut = el("span", "aaip-shortcut", { title: t("shortcut.gallery") });
 		shortcut.textContent = t("shortcut.gallery");
 		summary.append(this.selectionCount, shortcut);
 
@@ -278,6 +307,171 @@ export class ImagePickerModal {
 		this.panelToggle.setAttribute("aria-expanded", String(!collapsed));
 		this.panelToggle.setAttribute("aria-label", t(collapsed ? "instructions.expand" : "instructions.collapse"));
 		this.panelToggle.title = t(collapsed ? "instructions.expand" : "instructions.collapse");
+	}
+
+	refreshCardBounds(index) {
+		const view = this.cardViews[index];
+		const select = this.cardButtons[index];
+		const image = this.cardImages[index];
+		if (!view || !select || !image?.complete || image.naturalWidth <= 0 || image.naturalHeight <= 0) return;
+		const style = getComputedStyle(select);
+		const viewportWidth = Math.max(1, select.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight));
+		const viewportHeight = Math.max(1, select.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom));
+		view.bounds = {
+			viewportWidth,
+			viewportHeight,
+			imageWidth: Math.max(1, image.offsetWidth),
+			imageHeight: Math.max(1, image.offsetHeight),
+		};
+		view.zoom = clampPan(view.zoom, view.bounds);
+		this.updateCardZoomTransform(index);
+	}
+
+	onGalleryWheel(event) {
+		if (!event.shiftKey || event.ctrlKey || event.metaKey) return;
+		const delta = galleryScrollDelta(event.deltaX, event.deltaY, event.deltaMode, this.gallery.clientHeight);
+		if (delta === 0) return;
+		event.preventDefault();
+		this.gallery.scrollTop += delta;
+	}
+
+	onCardWheel(event, index) {
+		if (this.busy) return;
+		const view = this.cardViews[index];
+		if (!view.bounds) this.refreshCardBounds(index);
+		if (!view.bounds) return;
+		let overImage = true;
+		if (view.zoom.scale <= MIN_SCALE) {
+			const imageRect = this.cardImages[index].getBoundingClientRect();
+			overImage = event.clientX >= imageRect.left && event.clientX <= imageRect.right && event.clientY >= imageRect.top && event.clientY <= imageRect.bottom;
+		}
+		if (!shouldCaptureCardWheel({
+			scale: view.zoom.scale,
+			deltaX: event.deltaX,
+			deltaY: event.deltaY,
+			overImage,
+			ctrlKey: event.ctrlKey,
+			metaKey: event.metaKey,
+			shiftKey: event.shiftKey,
+		})) return;
+
+		event.preventDefault();
+		const rect = this.cardButtons[index].getBoundingClientRect();
+		const anchor = { x: event.clientX - rect.left - rect.width / 2, y: event.clientY - rect.top - rect.height / 2 };
+		const scale = wheelZoomScale(view.zoom.scale, event.deltaY, event.deltaMode, view.bounds.viewportHeight);
+		view.zoom = zoomAt(view.zoom, scale, anchor, view.bounds);
+		this.updateCardZoomTransform(index);
+	}
+
+	onCardPointerDown(event, index) {
+		if (this.busy || event.button !== 0 || this.cardViews[index].zoom.scale <= MIN_SCALE) return;
+		if (this.cardPointer) {
+			event.preventDefault();
+			return;
+		}
+		window.clearTimeout(this.suppressedCardClickTimer);
+		this.suppressedCardClick = null;
+		this.cardPointer = {
+			id: event.pointerId,
+			index,
+			start: { x: event.clientX, y: event.clientY },
+			last: { x: event.clientX, y: event.clientY },
+			moved: false,
+		};
+		this.cardButtons[index].setPointerCapture(event.pointerId);
+	}
+
+	onCardPointerMove(event) {
+		const pointer = this.cardPointer;
+		if (!pointer || pointer.id !== event.pointerId) return;
+		const point = { x: event.clientX, y: event.clientY };
+		if (!pointer.moved && !exceedsDragThreshold(pointer.start, point)) return;
+		if (!pointer.moved) {
+			pointer.moved = true;
+			this.cards[pointer.index].classList.add("aaip-card-dragging");
+		}
+		event.preventDefault();
+		const view = this.cardViews[pointer.index];
+		view.zoom = panBy(view.zoom, { x: point.x - pointer.last.x, y: point.y - pointer.last.y }, view.bounds);
+		pointer.last = point;
+		this.applyCardZoomTransform(pointer.index);
+	}
+
+	onCardPointerUp(event) {
+		const pointer = this.cardPointer;
+		if (!pointer || pointer.id !== event.pointerId) return;
+		this.clearCardPointer();
+		if (this.cardButtons[pointer.index].hasPointerCapture(event.pointerId)) this.cardButtons[pointer.index].releasePointerCapture(event.pointerId);
+		if (!pointer.moved || event.type !== "pointerup") return;
+		this.suppressedCardClick = pointer.index;
+		this.suppressedCardClickTimer = window.setTimeout(() => {
+			if (this.suppressedCardClick === pointer.index) this.suppressedCardClick = null;
+		}, 0);
+	}
+
+	onCardPointerCaptureLost(event) {
+		if (this.cardPointer?.id === event.pointerId) this.clearCardPointer();
+	}
+
+	clearCardPointer() {
+		if (!this.cardPointer) return;
+		this.cards[this.cardPointer.index].classList.remove("aaip-card-dragging");
+		this.cardPointer = null;
+	}
+
+	onCardClick(event, index) {
+		if (this.suppressedCardClick === index) {
+			event.preventDefault();
+			window.clearTimeout(this.suppressedCardClickTimer);
+			this.suppressedCardClick = null;
+			return;
+		}
+		this.toggle(index);
+	}
+
+	zoomCardCentered(index, requestedScale, announce = false) {
+		const view = this.cardViews[index];
+		if (!view.bounds) this.refreshCardBounds(index);
+		if (!view.bounds) return;
+		view.zoom = zoomAt(view.zoom, requestedScale, { x: 0, y: 0 }, view.bounds);
+		this.updateCardZoomTransform(index);
+		if (announce) this.announce(t("cardZoom.changed", { percent: Math.round(view.zoom.scale * 100) }));
+	}
+
+	panCard(index, delta) {
+		const view = this.cardViews[index];
+		if (!view.bounds || view.zoom.scale <= MIN_SCALE) return;
+		const previous = view.zoom;
+		view.zoom = panBy(view.zoom, delta, view.bounds);
+		this.applyCardZoomTransform(index);
+		if (view.zoom.x !== previous.x || view.zoom.y !== previous.y) this.announce(t("cardZoom.panned"));
+	}
+
+	resetCardZoom(index, announce = false) {
+		const view = this.cardViews[index];
+		if (!view || view.zoom.scale === MIN_SCALE) return;
+		view.zoom = resetZoom();
+		this.updateCardZoomTransform(index);
+		if (announce) this.announce(t("cardZoom.changed", { percent: 100 }));
+	}
+
+	applyCardZoomTransform(index) {
+		const view = this.cardViews[index];
+		const image = this.cardImages[index];
+		if (!view || !image) return;
+		image.style.transform = `translate3d(${view.zoom.x}px, ${view.zoom.y}px, 0) scale(${view.zoom.scale})`;
+	}
+
+	updateCardZoomTransform(index) {
+		const view = this.cardViews[index];
+		if (!view || !this.cardImages[index]) return;
+		const zoomed = view.zoom.scale > MIN_SCALE;
+		const percent = Math.round(view.zoom.scale * 100);
+		this.applyCardZoomTransform(index);
+		this.cards[index].classList.toggle("aaip-card-zoomed", zoomed);
+		this.cardZoomValues[index].hidden = !zoomed;
+		this.cardZoomValues[index].textContent = t("cardZoom.value", { number: String(index + 1).padStart(2, "0"), percent });
+		this.cardButtons[index].setAttribute("aria-description", t("aria.cardZoom", { percent }));
 	}
 
 	toggle(index) {
@@ -403,7 +597,17 @@ export class ImagePickerModal {
 			return;
 		}
 		if (!this.cardButtons.includes(document.activeElement)) return;
-		if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) {
+		const arrowKeys = ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"];
+		if (event.shiftKey && arrowKeys.includes(event.key) && this.cardViews[this.focusedIndex].zoom.scale > MIN_SCALE) {
+			event.preventDefault();
+			const delta = {
+				ArrowLeft: { x: 48, y: 0 },
+				ArrowRight: { x: -48, y: 0 },
+				ArrowUp: { x: 0, y: 48 },
+				ArrowDown: { x: 0, y: -48 },
+			}[event.key];
+			this.panCard(this.focusedIndex, delta);
+		} else if (arrowKeys.includes(event.key)) {
 			event.preventDefault();
 			const columns = Math.max(1, Math.round(this.gallery.clientWidth / this.cards[0].getBoundingClientRect().width));
 			this.focusedIndex = moveGridFocus(this.focusedIndex, event.key, columns, this.cards.length);
@@ -415,6 +619,15 @@ export class ImagePickerModal {
 		} else if (event.key === "Enter") {
 			event.preventDefault();
 			this.openPreview(this.focusedIndex);
+		} else if (event.key === "+" || event.key === "=") {
+			event.preventDefault();
+			this.zoomCardCentered(this.focusedIndex, this.cardViews[this.focusedIndex].zoom.scale * 1.25, true);
+		} else if (event.key === "-") {
+			event.preventDefault();
+			this.zoomCardCentered(this.focusedIndex, this.cardViews[this.focusedIndex].zoom.scale / 1.25, true);
+		} else if (event.key === "0") {
+			event.preventDefault();
+			this.resetCardZoom(this.focusedIndex, true);
 		}
 	}
 
@@ -505,7 +718,7 @@ export class ImagePickerModal {
 		event.preventDefault();
 		const rect = this.previewStage.getBoundingClientRect();
 		const anchor = { x: event.clientX - rect.left - rect.width / 2, y: event.clientY - rect.top - rect.height / 2 };
-		const scale = this.zoom.scale * Math.exp(-event.deltaY * 0.0015);
+		const scale = wheelZoomScale(this.zoom.scale, event.deltaY, event.deltaMode, this.bounds.viewportHeight);
 		this.zoom = zoomAt(this.zoom, scale, anchor, this.bounds);
 		this.updateZoomTransform();
 	}
@@ -542,6 +755,7 @@ export class ImagePickerModal {
 	}
 
 	onResize() {
+		this.cardViews.forEach((_, index) => this.refreshCardBounds(index));
 		if (this.previewIndex != null && this.previewImage.complete && this.previewImage.naturalWidth > 0 && this.previewImage.naturalHeight > 0) this.fitPreview();
 	}
 
@@ -555,6 +769,8 @@ export class ImagePickerModal {
 		this.destroyed = true;
 		window.clearInterval(this.timer);
 		window.clearTimeout(this.draftTimer);
+		window.clearTimeout(this.suppressedCardClickTimer);
+		this.cardResizeObserver?.disconnect();
 		this.abort.abort();
 		this.root.remove();
 		if (this.previousFocus instanceof HTMLElement && this.previousFocus.isConnected) this.previousFocus.focus();

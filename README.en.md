@@ -10,8 +10,8 @@ Pause a ComfyUI workflow and manually filter an image batch in an internal modal
 
 - Both single and multiple modes require an explicit confirmation; clicking never submits immediately.
 - A server-authoritative countdown with five actions: cancel, current selection, all, first, or last.
-- Responsive thumbnail grid, complete keyboard operation, and focus management.
-- Immersive preview inside the same overlay with pointer-anchored zoom (100%–800%) and constrained drag-to-pan.
+- Responsive thumbnail grid; every card independently supports pointer-anchored zoom (100%–800%) and constrained drag-to-pan for direct detail comparison.
+- Immersive preview inside the same overlay, complete keyboard operation, and focus management.
 - Collapsible CommonMark/GFM instructions rendered safely with local `marked` + `DOMPurify` copies.
 - Complete `en`, `zh`, and `zh-TW` UI and node localization.
 - Active-session recovery after refresh or WebSocket reconnect, with client and session isolation.
@@ -92,10 +92,15 @@ The final deadline decision uses the server's monotonic clock. Browser throttlin
 
 ### Gallery
 
-- Click a thumbnail: toggle selection.
+- Click a thumbnail: toggle selection; dragging never toggles it accidentally.
+- Wheel upward over the displayed image: begin zooming around the point under the pointer; once zoomed, the wheel continuously zooms between 100% and 800%.
+- Drag while zoomed: pan within that card's constrained bounds; every card keeps an independent view position.
+- Wheel downward at 100%: return control to gallery scrolling; `Shift+wheel` always scrolls the gallery to avoid a scroll trap.
 - Click the restrained expand button on a thumbnail: open the large preview.
 - Arrow keys: move thumbnail focus.
 - `Space`: toggle the focused image.
+- `+` / `-`: zoom the focused card; `Shift+arrow keys`: pan it while zoomed; `0`: reset it.
+- Touch devices: use the always-visible large-preview button at the card's top right, then zoom with the preview toolbar; the touch entry point never depends on hover.
 - `Enter`: preview the focused image.
 - `Tab` / `Shift+Tab`: cycle focus inside the modal.
 - `Escape`: explicitly cancel and interrupt this execution; clicking the backdrop does nothing.
@@ -140,6 +145,15 @@ python -m compileall -q .
 ```
 
 Run Python tests with the Python environment used by ComfyUI.
+
+## Acknowledgements and references
+
+Thanks to the following projects for inspiring the product concept:
+
+- [`chrisgoringe/cg-image-filter`](https://github.com/chrisgoringe/cg-image-filter): batch image filtering and execution-pausing interaction.
+- [`TechnoWarrior2/comfyui-image-picker`](https://github.com/TechnoWarrior2/comfyui-image-picker): a concise image-selection and large-preview experience.
+
+This project combines those product ideas, while its node architecture, session state machine, frontend interaction, and UI are independently implemented without copying their code or interface.
 
 ## License
 

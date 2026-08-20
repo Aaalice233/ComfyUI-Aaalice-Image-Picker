@@ -94,9 +94,13 @@ WebSocket 事件 `aaalice-image-picker-open` 与 `aaalice-image-picker-close` �
 
 模态直接挂载在当前 ComfyUI 页面，约 `96vw × 94vh`。图库使用完整显示的 lazy/async 图像；说明为空时不创建侧栏，非空时默认展开且可折叠，窄窗口切换为顶部区域。
 
-焦点打开时被保存并移动到图库，Tab 被限制在模态内，关闭后恢复。图库使用 roving tabindex 和 `listbox/option` 语义；选择状态同时使用阴影、灰阶覆盖、勾选和 ARIA，不只依赖颜色。遮罩点击没有行为。
+焦点打开时被保存并移动到图库，Tab 被限制在模态内，关闭后恢复。图库使用 `list/listitem` 与带 `aria-pressed` 的按钮语义，并通过 roving tabindex 管理卡片焦点；选择状态同时使用阴影、灰阶覆盖、勾选和 ARIA，不只依赖颜色。遮罩点击没有行为。
 
-大图以 fit 尺寸为 100%，缩放状态只更新 `transform`。滚轮用指针对应的中心坐标计算锚点；Pointer Events 平移使用预览边界 clamp。切图和 resize 重新 fit，缩放范围为 1–8 倍。
+每张图库卡片拥有仅存在于当前模态生命周期内的独立缩放状态，不写入 session 或工作流。鼠标位于实际图像区域时向上滚动会以指针为锚点开始缩放；放大后滚轮双向缩放并可用 Pointer Events 拖拽平移。拖拽经过 5px 意图阈值后才开始，完成后抑制对应 click，避免误选；pointer cancel、capture 丢失、多指竞争和销毁路径都会清理状态。卡片缩回 100% 时向下滚动、放大到 800% 后继续向上滚动都会交还图库；`Shift+滚轮` 会显式更新图库纵向滚动，而非依赖浏览器对修饰键的默认解释。ResizeObserver 在图库布局或说明面板改变尺寸时重算边界并 clamp 现有状态；每张卡片的合并编号/比例徽标和简短 ARIA 描述同步反映缩放比例。
+
+键盘焦点位于卡片时，`+`/`-` 缩放、`Shift+方向键` 平移、`0` 重置，并通过 live region 播报结果；普通方向键仍只负责网格导航。图库级 `aria-describedby` 只朗读一次完整操作说明，避免每张卡片重复长文案。精确指针 hover 时显示克制的“滚轮缩放”提示；触控环境不依赖该提示，而使用始终可见且至少 44×44px 的大图入口和大图工具栏。
+
+卡片与大图都把 fit 尺寸定义为 100%，缩放范围为 1–8 倍，缩放和平移只更新 `transform`。大图滚轮同样用指针对应的中心坐标计算锚点；Pointer Events 平移使用预览边界 clamp。大图切图和 resize 重新 fit，卡片 resize 则保留比例并重新约束平移。
 
 进入动效只服务于低频模态空间建立：180ms opacity + `scale(.97→1)`，使用强 `ease-out`。高频选择只做 120ms 颜色、阴影和透明度过渡，滚轮/拖拽不加过渡。按钮按压为 `scale(.96)`；`prefers-reduced-motion` 移除位移动效，hover 只在精确指针设备启用。
 
@@ -127,7 +131,7 @@ WebSocket 事件 `aaalice-image-picker-open` 与 `aaalice-image-picker-close` �
 | Python 竞态 | 确认/取消唯一赢家、中断终态、五种 timeout 与空 `submit_selected` |
 | Python tensor/schema | 非幂等 V3 schema、输出顺序、batch、dtype/device、空批次和布局错误 |
 | JavaScript selection | 单选替换、多选切换、全选/清空、payload 排序、键盘网格移动、deadline |
-| JavaScript preview | 鼠标锚点不变量、1–8 倍范围、平移边界和 reset |
+| JavaScript preview | 鼠标锚点不变量、1–8 倍范围、平移边界、wheel delta 归一化、双端边界滚动让渡、修饰键绕过、拖拽阈值和 reset |
 | JavaScript security | GFM 结构、URL 协议策略、DOMPurify 显式 allowlist 静态约束 |
 | JavaScript lifecycle/i18n | 重复 open/close、恢复队列、清理，以及三语键集合/空值 |
 
