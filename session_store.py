@@ -93,6 +93,7 @@ class SessionStore:
             timeout_action=timeout_action,
             deadline_monotonic=now_monotonic + timeout,
             deadline_epoch_ms=round((self._wall_time() + timeout) * 1000),
+            selected=(0,) if image_count == 1 else (),
         )
         with self._lock:
             self._sessions[session.session_id] = session

@@ -8,7 +8,7 @@ Pause a ComfyUI workflow and manually filter an image batch in an internal modal
 
 ## Features
 
-- Both single and multiple modes require an explicit confirmation; clicking never submits immediately.
+- A one-image input batch is checked automatically; both single and multiple modes still require explicit confirmation and never submit automatically.
 - A server-authoritative countdown with five actions: cancel, current selection, all, first, or last.
 - Responsive thumbnail grid; every card independently supports pointer-anchored zoom (100%–800%) and constrained drag-to-pan for direct detail comparison.
 - Card and large-preview zoom redraw only the visible region from the full-resolution lossless temporary PNG instead of stretching an already downscaled on-screen thumbnail.
@@ -73,6 +73,7 @@ The instructions region is omitted when the socket is disconnected or empty. Mar
 
 ### Selection modes
 
+- A one-image input batch starts with that image checked, but the picker still opens and waits for confirmation.
 - `single`: only one image stays selected; clicking another replaces it, and “Confirm selection” is still required.
 - `multiple`: select any number of images and use “Select all” or “Clear”.
 - Output is always sorted by original batch index, not click order.
@@ -128,7 +129,7 @@ The picker is mounted only in the initiating ComfyUI client page. It does not op
 That is expected. The workflow waits for confirmation, cancellation, interruption, or the server timeout.
 
 **Why does single mode not continue immediately?**
-Single mode also requires confirmation to prevent an accidental click from starting expensive downstream work.
+Single mode and one-image batches still require confirmation so expensive downstream work never starts without approval.
 
 **Can I continue after refreshing the page?**
 Yes. A reconnect with the same ComfyUI client ID queries and restores any session that is still waiting.

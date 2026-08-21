@@ -57,6 +57,15 @@ class SessionStoreTests(unittest.TestCase):
         self.assertEqual(10_000, payload["remaining_ms"])
         self.assertEqual(1_700_000_000_000, payload["server_epoch_ms"])
 
+    def test_single_image_is_initially_selected(self):
+        session = self.create(
+            previews=[{"filename": "1.png", "subfolder": "", "type": "temp"}],
+            image_count=1,
+        )
+        self.assertEqual((0,), session.selected)
+        self.assertEqual([0], self.store.payload(session)["selected"])
+        self.assertIsNone(session.terminal)
+
     def test_create_rejects_invalid_configuration(self):
         invalid = [
             {"client_id": ""},
