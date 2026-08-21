@@ -1,7 +1,7 @@
 [project]
 name = "aaalice-image-picker"
 description = "Pause ComfyUI workflows to inspect and manually select images from a batch."
-version = "1.0.0"
+version = "1.0.1"
 requires-python = ">=3.9"
 dependencies = []
 license = { file = "LICENSE" }

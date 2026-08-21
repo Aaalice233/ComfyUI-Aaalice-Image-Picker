@@ -1,4 +1,6 @@
 # Development-only files
+.comfyignore
+.gitignore
 AGENTS.md
 package.json
 tests/
