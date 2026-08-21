@@ -579,8 +579,12 @@ export class ImagePickerModal {
 	}
 
 	clearCardImageFallback(index) {
+		const view = this.cardViews[index];
+		const image = this.cardImages[index];
 		this.cards[index].classList.remove("aaip-raster-fallback");
-		this.cardImages[index].removeAttribute("style");
+		image.style.width = `${view.bounds.imageWidth}px`;
+		image.style.height = `${view.bounds.imageHeight}px`;
+		image.style.transform = "";
 	}
 
 	visibleZoomedCardCount() {
