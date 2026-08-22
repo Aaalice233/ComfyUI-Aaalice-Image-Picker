@@ -94,7 +94,7 @@ WebSocket 事件 `aaalice-image-picker-open` 与 `aaalice-image-picker-close` �
 
 模态直接挂载在当前 ComfyUI 页面，约 `96vw × 94vh`。图库使用完整显示的 lazy/async 图像；说明为空时不创建侧栏，非空时默认展开且可折叠，窄窗口切换为顶部区域。
 
-焦点打开时被保存并移动到图库，Tab 被限制在模态内，关闭后恢复。图库使用 `list/listitem` 与带 `aria-pressed` 的按钮语义，并通过 roving tabindex 管理卡片焦点；选择状态同时使用阴影、灰阶覆盖、勾选和 ARIA，不只依赖颜色。遮罩点击没有行为。
+焦点打开时被保存并移动到图库，Tab 被限制在模态内，关闭后恢复。图库使用 `list/listitem` 与带 `aria-pressed` 的按钮语义，并通过 roving tabindex 管理卡片焦点；选择状态使用卡片外描边、右上角外悬勾选徽标和 ARIA，不改变图像本身的亮度、饱和度或透明度。遮罩点击没有行为。
 
 每张图库卡片拥有仅存在于当前模态生命周期内的独立缩放状态，不写入 session 或工作流。鼠标位于实际图像区域时向上滚动会以指针为锚点开始缩放；放大后滚轮双向缩放并可用 Pointer Events 拖拽平移。拖拽经过 5px 意图阈值后才开始，完成后抑制对应 click，避免误选；pointer cancel、capture 丢失、多指竞争和销毁路径都会清理状态。卡片缩回 100% 时向下滚动、放大到 800% 后继续向上滚动都会交还图库；`Shift+滚轮` 会显式更新图库纵向滚动，而非依赖浏览器对修饰键的默认解释。ResizeObserver 在图库布局或说明面板改变尺寸时重算边界并 clamp 现有状态；每张卡片的合并编号/比例徽标和简短 ARIA 描述同步反映缩放比例。
 
@@ -102,7 +102,7 @@ WebSocket 事件 `aaalice-image-picker-open` 与 `aaalice-image-picker-close` �
 
 卡片与大图都把 fit 尺寸定义为 100%，缩放范围为 1–8 倍。未放大的卡片继续使用 lazy/async `<img>`，进入缩放后则从完整分辨率临时 PNG 中只裁取当前可见的源像素区域，重绘到视口尺寸的 Canvas；不会对已经缩小的 DOM 位图做合成层拉伸。Canvas backing store 跟随设备像素比；大图单视口受 8,388,608 像素预算约束；所有可见缩放卡片稳态合计不超过 6,291,456 像素，并为新进入交互的卡片预留 2,097,152 像素，使重平衡前的瞬时总量也不超过 8,388,608。单边长度不超过 16,384，宽高向下取整以保证实际分配不突破预算。连续滚轮和拖拽由 `requestAnimationFrame` 合并到每帧一次低成本重绘，停止操作 80ms 后再恢复完整像素密度。低于原生像素密度时采用高质量下采样，超过原生像素密度后关闭模糊插值，以真实像素代替虚假的柔化细节。离开图库可见区域的已缩放卡片会保留纯状态但释放 Canvas backing store，重新进入前再恢复；Canvas 同步绘制失败或异步丢失 2D context 时会显式播报，并回退到基于完整分辨率 `<img>` 的原生渲染，不会显示空白。大图使用同一渐进栅格路径；独立的轻量边缘层保持图像 outline 与大图 shadow，不参与位图重采样。切图和 resize 重新 fit，卡片 resize 则保留比例并重新约束平移；关闭、切图、pointer cancel 和 capture 丢失都会清理大图拖拽状态。销毁、重置、切图与关闭预览都会取消待执行帧、精修计时器并释放 Canvas backing store。
 
-进入动效只服务于低频模态空间建立：180ms opacity + `scale(.97→1)`，使用强 `ease-out`。高频选择只做 120ms 颜色、阴影和透明度过渡，滚轮/拖拽不加过渡。按钮按压为 `scale(.96)`；`prefers-reduced-motion` 移除位移动效，hover 只在精确指针设备启用。
+进入动效只服务于低频模态空间建立：180ms opacity + `scale(.97→1)`，使用强 `ease-out`。高频选择只做 120ms 描边颜色和徽标透明度过渡，滚轮/拖拽不加过渡。按钮按压为 `scale(.96)`；`prefers-reduced-motion` 移除位移动效，hover 只在精确指针设备启用。
 
 ## Markdown 安全
 

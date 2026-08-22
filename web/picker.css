@@ -200,8 +200,10 @@
 	min-height: 0;
 	border-radius: 12px;
 	background: var(--aaip-surface-raised);
+	outline: 2px solid transparent;
+	outline-offset: 2px;
 	box-shadow: 0 1px 1px rgb(0 0 0 / 0.25), 0 7px 22px rgb(0 0 0 / 0.16), inset 0 0 0 1px rgb(255 255 255 / 0.035);
-	transition-property: box-shadow;
+	transition-property: outline-color;
 	transition-duration: 120ms;
 	transition-timing-function: ease;
 }
@@ -270,11 +272,18 @@
 }
 .aaip-image-failed[hidden] { display: none; }
 
-.aaip-selection-shade {
+.aaip-selection-indicator {
 	position: absolute;
-	inset: 10px;
-	border-radius: 7px;
-	background: rgb(12 13 16 / 0.2);
+	top: -7px;
+	right: -7px;
+	z-index: 2;
+	display: grid;
+	place-items: center;
+	width: 22px;
+	height: 22px;
+	border-radius: 50%;
+	background: color-mix(in srgb, var(--aaip-accent) 86%, #24262c);
+	box-shadow: 0 0 0 2px var(--aaip-surface-sunken), 0 3px 10px rgb(0 0 0 / 0.32), inset 0 0 0 1px rgb(255 255 255 / 0.2);
 	opacity: 0;
 	pointer-events: none;
 	transition-property: opacity;
@@ -282,26 +291,18 @@
 	transition-timing-function: ease;
 }
 
-.aaip-selection-shade svg {
-	position: absolute;
-	top: 8px;
-	left: 8px;
-	width: 30px;
-	height: 30px;
-	padding: 6px;
-	border-radius: 50%;
-	background: color-mix(in srgb, var(--aaip-accent) 86%, #24262c);
-	box-shadow: 0 5px 18px rgb(0 0 0 / 0.28), inset 0 0 0 1px rgb(255 255 255 / 0.18);
+.aaip-selection-indicator svg {
+	width: 13px;
+	height: 13px;
 	fill: none;
 	stroke: white;
-	stroke-width: 2;
+	stroke-width: 2.4;
 	stroke-linecap: round;
 	stroke-linejoin: round;
 }
 
-.aaip-selected { box-shadow: 0 1px 1px rgb(0 0 0 / 0.3), 0 9px 28px color-mix(in srgb, var(--aaip-accent) 18%, transparent), inset 0 0 0 1px color-mix(in srgb, var(--aaip-accent) 48%, transparent); }
-.aaip-selected .aaip-thumbnail { filter: saturate(0.82) brightness(0.88); opacity: 0.92; }
-.aaip-selected .aaip-selection-shade { opacity: 1; }
+.aaip-selected { outline-color: var(--aaip-accent-strong); }
+.aaip-selected .aaip-selection-indicator { opacity: 1; }
 .aaip-card-zoomed:not(.aaip-raster-fallback):not(.aaip-card-raster-suspended) .aaip-thumbnail { visibility: hidden; }
 .aaip-card-zoomed.aaip-raster-fallback .aaip-thumbnail {
 	position: absolute;
@@ -315,8 +316,6 @@
 }
 .aaip-card-zoomed .aaip-card-select { cursor: grab; touch-action: none; }
 .aaip-card-dragging .aaip-card-select { cursor: grabbing; }
-.aaip-card-zoomed.aaip-selected .aaip-selection-shade { background: transparent; }
-.aaip-card-zoomed .aaip-selection-shade svg { top: 6px; left: 6px; width: 26px; height: 26px; padding: 5px; }
 .aaip-card-zoomed .aaip-image-number { display: none; }
 
 .aaip-image-number {

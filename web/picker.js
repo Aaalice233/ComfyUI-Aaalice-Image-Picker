@@ -262,14 +262,14 @@ export class ImagePickerModal {
 			event.preventDefault();
 			if (this.cardViews[index].zoom.scale > MIN_SCALE) this.useCardImageFallback(index);
 		}, { signal: this.abort.signal });
-		const shade = el("span", "aaip-selection-shade", { "aria-hidden": "true" });
-		shade.innerHTML = ICONS.check;
+		const selectionIndicator = el("span", "aaip-selection-indicator", { "aria-hidden": "true" });
+		selectionIndicator.innerHTML = ICONS.check;
 		const number = el("span", "aaip-image-number", { "aria-hidden": "true" });
 		number.textContent = String(index + 1).padStart(2, "0");
 		const zoomValue = el("span", "aaip-card-zoom-value", { "aria-hidden": "true", hidden: "" });
 		const zoomCue = el("span", "aaip-card-zoom-cue", { "aria-hidden": "true" });
 		zoomCue.textContent = t("cardZoom.hint");
-		select.append(image, canvas, imageFrame, failed, shade, number, zoomValue, zoomCue);
+		select.append(image, canvas, imageFrame, failed, number, zoomValue, zoomCue);
 		select.addEventListener("click", (event) => this.onCardClick(event, index), { signal: this.abort.signal });
 		select.addEventListener("focus", () => { this.focusedIndex = index; this.updateRovingTabIndex(); }, { signal: this.abort.signal });
 		select.addEventListener("wheel", (event) => this.onCardWheel(event, index), { passive: false, signal: this.abort.signal });
@@ -281,7 +281,7 @@ export class ImagePickerModal {
 
 		const expand = button("aaip-expand", t("button.enlarge"), ICONS.expand);
 		expand.addEventListener("click", () => this.openPreview(index), { signal: this.abort.signal });
-		card.append(select, expand);
+		card.append(select, expand, selectionIndicator);
 		this.cardButtons[index] = select;
 		this.cardImages[index] = image;
 		this.cardCanvases[index] = canvas;
