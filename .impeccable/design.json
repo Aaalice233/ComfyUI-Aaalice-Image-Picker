@@ -1,0 +1,250 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-31T10:55:54.0232949+08:00",
+  "title": "Design System: Aaalice Image Picker",
+  "extensions": {
+    "colorMeta": {
+      "backdrop": {
+        "role": "neutral",
+        "displayName": "暗房遮罩",
+        "canonical": "rgb(5 6 8 / 0.7)",
+        "tonalRamp": ["#050608", "#111216", "#202126", "#34353b", "#505158", "#74757c", "#a6a7ac", "#eff0f1"]
+      },
+      "background": {
+        "role": "neutral",
+        "displayName": "暗房底色",
+        "canonical": "#252629",
+        "tonalRamp": ["#101113", "#18191b", "#252629", "#38393c", "#515255", "#737477", "#a2a3a5", "#ececee"]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "工作台表面",
+        "canonical": "#393a3c",
+        "tonalRamp": ["#131416", "#202124", "#303135", "#46474b", "#606165", "#808185", "#adaeb1", "#f0f0f1"]
+      },
+      "surface-raised": {
+        "role": "neutral",
+        "displayName": "抬升卡片面",
+        "canonical": "#48494b",
+        "tonalRamp": ["#161719", "#252629", "#38393c", "#505154", "#6b6c6f", "#8b8c8f", "#b6b7b9", "#f2f2f3"]
+      },
+      "surface-sunken": {
+        "role": "neutral",
+        "displayName": "沉入工作区",
+        "canonical": "#222326",
+        "tonalRamp": ["#0d0e10", "#161719", "#222326", "#343538", "#4d4e52", "#707175", "#a0a1a4", "#ebebed"]
+      },
+      "text": {
+        "role": "neutral",
+        "displayName": "主文本白",
+        "canonical": "#f2f2f3",
+        "tonalRamp": ["#171719", "#29292c", "#454548", "#666669", "#8b8b8e", "#b2b2b5", "#d4d4d6", "#f2f2f3"]
+      },
+      "text-muted": {
+        "role": "neutral",
+        "displayName": "静音文本灰",
+        "canonical": "rgb(242 242 243 / 0.58)",
+        "tonalRamp": ["#171719", "#29292c", "#454548", "#666669", "#8c8c8e", "#b2b2b4", "#d5d5d6", "#f2f2f3"]
+      },
+      "accent": {
+        "role": "primary",
+        "displayName": "冷光引导色",
+        "canonical": "#8b9fff",
+        "tonalRamp": ["#151a33", "#222d55", "#35447a", "#5264a3", "#7085cc", "#8b9fff", "#bdc8ff", "#eef1ff"]
+      },
+      "accent-strong": {
+        "role": "primary",
+        "displayName": "冷光高亮色",
+        "canonical": "#9daeff",
+        "tonalRamp": ["#171c38", "#27305c", "#3c4982", "#596baa", "#788bd3", "#9daeff", "#c7d0ff", "#f0f2ff"]
+      },
+      "danger": {
+        "role": "tertiary",
+        "displayName": "警示珊瑚红",
+        "canonical": "#ff7c83",
+        "tonalRamp": ["#341416", "#5b2226", "#83343a", "#ad4b52", "#d6636a", "#ff7c83", "#ffb5b8", "#fff0f1"]
+      },
+      "preview-shell": {
+        "role": "neutral",
+        "displayName": "预览外壳黑",
+        "canonical": "#111214",
+        "tonalRamp": ["#090a0b", "#111214", "#1e1f22", "#323337", "#4c4d52", "#707176", "#a0a1a5", "#ececee"]
+      },
+      "preview-stage": {
+        "role": "neutral",
+        "displayName": "预览舞台黑",
+        "canonical": "#0d0e10",
+        "tonalRamp": ["#070809", "#0d0e10", "#1a1b1e", "#2e2f33", "#48494e", "#6d6e73", "#9e9fa3", "#ebebed"]
+      }
+    },
+    "typographyMeta": {
+      "title": { "displayName": "模态标题", "purpose": "建立当前人工校片任务的唯一主标题。" },
+      "body": { "displayName": "说明正文", "purpose": "承载可连续阅读的 Markdown 筛选说明。" },
+      "control": { "displayName": "操作文本", "purpose": "用于主次按钮和紧凑操作。" },
+      "label": { "displayName": "状态标签", "purpose": "用于模式、倒计时标签和次要状态。" },
+      "numeric": { "displayName": "稳定数字", "purpose": "用于倒计时、编号与倍率，避免更新时跳动。" }
+    },
+    "shadows": [
+      {
+        "name": "dialog-depth",
+        "value": "0 0 0 1px rgb(255 255 255 / 0.055), 0 2px 3px rgb(0 0 0 / 0.34), 0 18px 46px rgb(0 0 0 / 0.42), 0 44px 110px rgb(0 0 0 / 0.34)",
+        "purpose": "将主模态从 ComfyUI 背景中抬起。"
+      },
+      {
+        "name": "section-header",
+        "value": "0 1px 0 rgb(255 255 255 / 0.045), 0 8px 24px rgb(0 0 0 / 0.12)",
+        "purpose": "建立 Header 与滚动内容区之间的结构分界。"
+      },
+      {
+        "name": "section-footer",
+        "value": "0 -1px 0 rgb(255 255 255 / 0.04), 0 -10px 28px rgb(0 0 0 / 0.13)",
+        "purpose": "建立 Footer 与滚动内容区之间的结构分界。"
+      },
+      {
+        "name": "card-rest",
+        "value": "0 1px 1px rgb(0 0 0 / 0.25), 0 7px 22px rgb(0 0 0 / 0.16), inset 0 0 0 1px rgb(255 255 255 / 0.035)",
+        "purpose": "图像卡片的低调静态抬升。"
+      },
+      {
+        "name": "preview-image",
+        "value": "0 18px 50px rgb(0 0 0 / 0.32)",
+        "purpose": "静止预览图像的边缘层；进入拖拽状态后移除。"
+      }
+    ],
+    "motion": [
+      {
+        "name": "modal-enter",
+        "value": "180ms cubic-bezier(0.23, 1, 0.32, 1)",
+        "purpose": "以 opacity 和 scale(.97 → 1) 建立低频模态空间。"
+      },
+      {
+        "name": "state-transition",
+        "value": "120ms ease",
+        "purpose": "用于选择描边、徽标透明度和按钮状态。"
+      },
+      {
+        "name": "raster-refinement-delay",
+        "value": "80ms",
+        "purpose": "滚轮或拖拽停止后恢复高质量栅格重绘。"
+      },
+      {
+        "name": "reduced-motion",
+        "value": "prefers-reduced-motion: reduce",
+        "purpose": "移除模态 scale 和控件按压位移，只保留必要状态变化。"
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "mobile",
+        "value": "800px",
+        "purpose": "模态全屏化，说明栏改为顶部，Footer 与预览工具栏重排。"
+      },
+      {
+        "name": "coarse-pointer",
+        "value": "pointer: coarse",
+        "purpose": "关键图标控件扩大到至少 44×44px。"
+      },
+      {
+        "name": "fine-hover",
+        "value": "(hover: hover) and (pointer: fine)",
+        "purpose": "只对精确指针显示 hover 提示和强化状态。"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Modal Shell",
+      "kind": "custom",
+      "description": "深色三段式校片工作台，使用结构化表面和宽幅环境阴影。",
+      "html": "<div class=\"ds-backdrop\"><section class=\"ds-dialog\" role=\"dialog\" aria-modal=\"true\"><header class=\"ds-header\"><strong>Choose images</strong><span class=\"ds-mode\">Multiple selection</span></header><main class=\"ds-content\">Image inspection workspace</main><footer class=\"ds-footer\">Selection controls</footer></section></div>",
+      "css": ".ds-backdrop { display:grid; place-items:center; min-height:360px; padding:20px; background:rgb(5 6 8 / .7); color:#f2f2f3; font-family:Inter,ui-sans-serif,system-ui,sans-serif; } .ds-dialog { display:grid; grid-template-rows:auto 1fr auto; width:min(680px,100%); min-height:310px; overflow:hidden; background:#252629; border-radius:18px; box-shadow:0 0 0 1px rgb(255 255 255 / .055),0 2px 3px rgb(0 0 0 / .34),0 18px 46px rgb(0 0 0 / .42),0 44px 110px rgb(0 0 0 / .34); animation:ds-dialog-in 180ms cubic-bezier(.23,1,.32,1) both; } .ds-header,.ds-footer { display:flex; align-items:center; justify-content:space-between; gap:24px; padding:16px 22px; background:#393a3c; } .ds-header strong { font-size:20px; font-weight:650; letter-spacing:-.015em; } .ds-mode { padding:5px 9px; border-radius:999px; background:rgb(255 255 255 / .055); color:rgb(242 242 243 / .58); font-size:12px; font-weight:600; } .ds-content { display:grid; place-items:center; min-height:190px; background:#222326; color:rgb(242 242 243 / .58); font-size:14px; } .ds-header { box-shadow:0 1px 0 rgb(255 255 255 / .045),0 8px 24px rgb(0 0 0 / .12); } .ds-footer { box-shadow:0 -1px 0 rgb(255 255 255 / .04),0 -10px 28px rgb(0 0 0 / .13); font-size:13px; } @keyframes ds-dialog-in { from { opacity:0; transform:scale(.97); } to { opacity:1; transform:scale(1); } } @media (prefers-reduced-motion:reduce) { .ds-dialog { animation:none; } }"
+    },
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "确认选择等唯一主操作使用的冷光强调按钮。",
+      "html": "<button class=\"ds-btn-primary\">Confirm selection</button>",
+      "css": ".ds-btn-primary { min-height:40px; padding:0 15px; border:0; border-radius:9px; background:color-mix(in srgb,#8b9fff 78%,#363940); box-shadow:inset 0 0 0 1px rgb(255 255 255 / .12),0 5px 15px color-mix(in srgb,#8b9fff 16%,transparent); color:#fff; font:600 13px Inter,ui-sans-serif,system-ui,sans-serif; cursor:pointer; transition:background-color 120ms ease,box-shadow 120ms ease,transform 120ms ease; } .ds-btn-primary:hover { background:color-mix(in srgb,#8b9fff 88%,#363940); } .ds-btn-primary:focus-visible { outline:2px solid #9daeff; outline-offset:2px; } .ds-btn-primary:active { transform:scale(.96); } .ds-btn-primary:disabled { opacity:.38; cursor:not-allowed; transform:none; } @media (prefers-reduced-motion:reduce) { .ds-btn-primary { transition:background-color 120ms ease,box-shadow 120ms ease; } .ds-btn-primary:active { transform:none; } }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "取消等明确但非主导操作使用的低对比表面按钮。",
+      "html": "<button class=\"ds-btn-secondary\">Cancel</button>",
+      "css": ".ds-btn-secondary { min-height:40px; padding:0 15px; border:0; border-radius:9px; background:rgb(255 255 255 / .055); box-shadow:inset 0 0 0 1px rgb(255 255 255 / .055); color:#f2f2f3; font:600 13px Inter,ui-sans-serif,system-ui,sans-serif; cursor:pointer; transition:background-color 120ms ease,transform 120ms ease; } .ds-btn-secondary:hover { background:rgb(255 255 255 / .085); } .ds-btn-secondary:focus-visible { outline:2px solid #9daeff; outline-offset:2px; } .ds-btn-secondary:active { transform:scale(.96); } .ds-btn-secondary:disabled { opacity:.38; cursor:not-allowed; transform:none; } @media (prefers-reduced-motion:reduce) { .ds-btn-secondary:active { transform:none; } }"
+    },
+    {
+      "name": "Quiet Button",
+      "kind": "button",
+      "refersTo": "button-quiet",
+      "description": "全选、清空等低权重批量操作使用的透明按钮。",
+      "html": "<button class=\"ds-btn-quiet\">Select all</button>",
+      "css": ".ds-btn-quiet { min-height:40px; padding:0 15px; border:0; border-radius:9px; background:transparent; color:rgb(242 242 243 / .58); font:600 13px Inter,ui-sans-serif,system-ui,sans-serif; cursor:pointer; transition:color 120ms ease,background-color 120ms ease,transform 120ms ease; } .ds-btn-quiet:hover { color:#f2f2f3; background:rgb(255 255 255 / .075); } .ds-btn-quiet:focus-visible { outline:2px solid #9daeff; outline-offset:2px; } .ds-btn-quiet:active { transform:scale(.96); } .ds-btn-quiet:disabled { opacity:.38; cursor:not-allowed; transform:none; } @media (prefers-reduced-motion:reduce) { .ds-btn-quiet:active { transform:none; } }"
+    },
+    {
+      "name": "Countdown Timer",
+      "kind": "custom",
+      "refersTo": "countdown",
+      "description": "沉入式、等宽数字的服务端可信倒计时显示。",
+      "html": "<div class=\"ds-timer\" role=\"timer\"><span>Time remaining</span><strong>04:58</strong></div>",
+      "css": ".ds-timer { display:grid; grid-template-columns:auto auto; align-items:baseline; gap:10px; min-width:150px; padding:9px 12px; border-radius:10px; background:#222326; box-shadow:inset 0 1px 2px rgb(0 0 0 / .24),0 0 0 1px rgb(255 255 255 / .04); color:#f2f2f3; font-family:Inter,ui-sans-serif,system-ui,sans-serif; } .ds-timer span { color:rgb(242 242 243 / .58); font-size:12px; } .ds-timer strong { justify-self:end; font:600 15px SFMono-Regular,Consolas,monospace; font-variant-numeric:tabular-nums; letter-spacing:.025em; } .ds-timer:focus-within { outline:2px solid #9daeff; outline-offset:2px; } .ds-timer[data-urgent=\"true\"] { color:#ff7c83; box-shadow:inset 0 1px 2px rgb(0 0 0 / .24),0 0 0 1px rgb(255 124 131 / .38); }"
+    },
+    {
+      "name": "Image Selection Card",
+      "kind": "card",
+      "refersTo": "image-card",
+      "description": "保持图像像素中性的可选择、可放大校片卡片。",
+      "html": "<article class=\"ds-image-card ds-selected\"><button class=\"ds-card-select\" aria-pressed=\"true\"><span class=\"ds-card-art\"></span><span class=\"ds-image-number\">01</span><span class=\"ds-zoom-cue\">Wheel to zoom</span></button><span class=\"ds-selection-indicator\" aria-hidden=\"true\"><svg viewBox=\"0 0 16 16\"><path d=\"m3 8 3 3 7-7\"/></svg></span></article>",
+      "css": ".ds-image-card { position:relative; width:min(300px,100%); height:210px; border-radius:12px; background:#48494b; outline:2px solid transparent; outline-offset:2px; box-shadow:0 1px 1px rgb(0 0 0 / .25),0 7px 22px rgb(0 0 0 / .16),inset 0 0 0 1px rgb(255 255 255 / .035); transition:outline-color 120ms ease; } .ds-card-select { display:grid; place-items:center; width:100%; height:100%; padding:10px; border:0; border-radius:12px; overflow:hidden; background:transparent; color:#f2f2f3; cursor:pointer; } .ds-card-art { width:100%; height:100%; border-radius:7px; outline:1px solid rgb(255 255 255 / .1); outline-offset:-1px; background:linear-gradient(145deg,#536174,#232a35 48%,#8b7c70); } .ds-image-number,.ds-zoom-cue { position:absolute; bottom:17px; padding:4px 7px; border-radius:6px; background:rgb(5 6 8 / .68); box-shadow:0 2px 8px rgb(0 0 0 / .2); color:rgb(255 255 255 / .84); font:600 11px/1.2 SFMono-Regular,Consolas,monospace; } .ds-image-number { left:17px; } .ds-zoom-cue { right:17px; opacity:0; transition:opacity 120ms ease; } .ds-card-select:hover .ds-zoom-cue { opacity:1; } .ds-card-select:focus-visible { outline:2px solid #9daeff; outline-offset:2px; } .ds-selection-indicator { position:absolute; top:-7px; right:-7px; display:grid; place-items:center; width:22px; height:22px; border-radius:50%; background:color-mix(in srgb,#8b9fff 86%,#24262c); box-shadow:0 0 0 2px #222326,0 3px 10px rgb(0 0 0 / .32),inset 0 0 0 1px rgb(255 255 255 / .2); opacity:0; } .ds-selection-indicator svg { width:13px; height:13px; fill:none; stroke:#fff; stroke-width:2.4; stroke-linecap:round; stroke-linejoin:round; } .ds-selected { outline-color:#9daeff; } .ds-selected .ds-selection-indicator { opacity:1; }"
+    },
+    {
+      "name": "Instructions Panel",
+      "kind": "custom",
+      "description": "与图库分层的紧凑 Markdown 筛选说明。",
+      "html": "<aside class=\"ds-instructions\"><h2>Instructions</h2><div class=\"ds-markdown\"><h3>Selection criteria</h3><p>Inspect structure, lighting, and visible artifacts before confirming.</p><blockquote>Zoom in when detail affects the decision.</blockquote></div></aside>",
+      "css": ".ds-instructions { width:min(330px,100%); padding:22px; background:#393a3c; box-shadow:1px 0 0 rgb(255 255 255 / .04),10px 0 28px rgb(0 0 0 / .1); color:#f2f2f3; font-family:Inter,ui-sans-serif,system-ui,sans-serif; } .ds-instructions > h2 { margin:0 0 18px; color:rgb(242 242 243 / .58); font-size:13px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; } .ds-markdown { font-size:14px; line-height:1.65; } .ds-markdown h3 { margin:1.4em 0 .55em; font-size:1.12em; line-height:1.3; } .ds-markdown p { margin:.8em 0; } .ds-markdown blockquote { margin:.8em 0; padding-left:14px; box-shadow:inset 2px 0 #8b9fff; color:rgb(242 242 243 / .58); } .ds-instructions:focus-within { outline:2px solid #9daeff; outline-offset:2px; }"
+    },
+    {
+      "name": "Preview Overlay",
+      "kind": "custom",
+      "description": "主模态内部用于真实像素检查的深色大图检视空间。",
+      "html": "<section class=\"ds-preview\" aria-label=\"Large image preview\"><header class=\"ds-preview-toolbar\"><button class=\"ds-preview-icon\" aria-label=\"Back\"><svg viewBox=\"0 0 24 24\"><path d=\"m15 18-6-6 6-6\"/></svg></button><strong>Image 2 of 8</strong><div class=\"ds-preview-controls\"><button class=\"ds-preview-icon\" aria-label=\"Zoom out\">−</button><span>125%</span><button class=\"ds-preview-icon\" aria-label=\"Zoom in\">+</button></div></header><div class=\"ds-preview-stage\"><span class=\"ds-preview-image\"></span></div><footer class=\"ds-preview-hint\">Wheel zooms · Drag pans · Esc returns</footer></section>",
+      "css": ".ds-preview { display:grid; grid-template-rows:auto 1fr auto; min-height:360px; overflow:hidden; background:#111214; color:#f2f2f3; font-family:Inter,ui-sans-serif,system-ui,sans-serif; } .ds-preview-toolbar { display:grid; grid-template-columns:minmax(40px,1fr) auto minmax(0,1fr); align-items:center; gap:16px; min-height:68px; padding:12px 18px; background:rgb(29 30 33 / .96); box-shadow:0 1px 0 rgb(255 255 255 / .05),0 10px 30px rgb(0 0 0 / .18); } .ds-preview-toolbar > strong { font-size:13px; font-variant-numeric:tabular-nums; } .ds-preview-controls { justify-self:end; display:flex; align-items:center; gap:8px; } .ds-preview-controls span { min-width:58px; text-align:center; color:rgb(242 242 243 / .58); font:600 12px/1 SFMono-Regular,Consolas,monospace; } .ds-preview-icon { display:grid; place-items:center; width:40px; height:40px; padding:0; border:0; border-radius:9px; background:rgb(255 255 255 / .045); box-shadow:inset 0 0 0 1px rgb(255 255 255 / .045); color:#f2f2f3; font-size:20px; cursor:pointer; transition:background-color 120ms ease,transform 120ms ease; } .ds-preview-icon svg { width:19px; height:19px; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; } .ds-preview-icon:hover { background:rgb(255 255 255 / .075); } .ds-preview-icon:focus-visible { outline:2px solid #9daeff; outline-offset:2px; } .ds-preview-icon:active { transform:scale(.96); } .ds-preview-stage { display:grid; place-items:center; min-height:240px; overflow:hidden; background:radial-gradient(circle at center,rgb(255 255 255 / .035),transparent 48%),#0d0e10; } .ds-preview-image { width:min(58%,280px); aspect-ratio:4/3; background:linear-gradient(145deg,#536174,#232a35 48%,#8b7c70); outline:1px solid rgb(255 255 255 / .1); outline-offset:-1px; box-shadow:0 18px 50px rgb(0 0 0 / .32); } .ds-preview-hint { padding:10px 16px; background:rgb(29 30 33 / .96); color:rgb(255 255 255 / .46); text-align:center; font-size:11px; } @media (prefers-reduced-motion:reduce) { .ds-preview-icon:active { transform:none; } }"
+    }
+  ],
+  "narrative": {
+    "northStar": "暗房校片台",
+    "overview": "界面像一张嵌入 ComfyUI 工作流的专业校片台：背景沉静，结构清楚，所有视觉层级都为候选图像、局部细节和最终确认让路。整体气质是克制、沉静、精密、可信赖；它不追求品牌展示感，而是用安静且明确的反馈支撑高专注度判断。\n\n视觉语言以深色色调分层、紧凑控制和少量冷光强调构成。模态与预览建立独立工作空间，卡片保持低噪声，状态变化不修改图像本身。高饱和装饰、品牌喧宾夺主、过亮大面积底色和复杂花哨动效都不属于这个系统。",
+    "keyCharacteristics": [
+      "深色、沉静、图像优先",
+      "结构化分层而非装饰堆叠",
+      "冷光强调稀少且有明确语义",
+      "紧凑控件与完整可见的状态反馈",
+      "低频动效建立空间，高频检查不受干扰"
+    ],
+    "rules": [
+      { "name": "The Cold-Light Scarcity Rule", "body": "冷光引导色只服务于选择、焦点、主操作和链接；它的稀少本身就是信息层级。", "section": "colors" },
+      { "name": "The Image Neutrality Rule", "body": "选中状态不得改变图像亮度、饱和度或透明度，只能通过外描边、勾选徽标、ARIA 和状态文本表达。", "section": "colors" },
+      { "name": "The Stable Numbers Rule", "body": "所有会变化的时间、序号和倍率使用等宽字体与 tabular numerals，避免状态更新引发布局跳动。", "section": "typography" },
+      { "name": "The Image-First Space Rule", "body": "响应式压缩优先隐藏模式标签、快捷键摘要等辅助信息，不压缩图像检查和确认所需的核心空间。", "section": "layout" },
+      { "name": "The Tonal-First Rule", "body": "先用表面明度建立结构，只有需要表达真实空间层级时才增加阴影。", "section": "elevation" },
+      { "name": "The Nested Radius Rule", "body": "内层媒体的圆角必须小于承载它的卡片或控件圆角，保持可读的嵌套轮廓。", "section": "shapes" }
+    ],
+    "dos": [
+      "Do 让图像始终占据最大、最安静的视觉区域。",
+      "Do 使用色调分层先建立结构，再用克制阴影补充真实层级。",
+      "Do 只在选择、焦点、主操作和链接上使用冷光引导色。",
+      "Do 用外描边、徽标、ARIA 和文本共同表达选择状态，保持图像像素不变。",
+      "Do 为键盘、触控、窄屏和 reduced motion 保留等价且完整的操作路径。"
+    ],
+    "donts": [
+      "Don't 使用高饱和装饰、过亮大面积底色或品牌元素抢夺图像注意力。",
+      "Don't 给滚轮缩放、拖拽平移或连续重绘添加过渡动画。",
+      "Don't 依赖 hover 暴露关键操作，或把关键触控目标做小于 44×44px。",
+      "Don't 用模糊放大的缩略图替代完整分辨率细节检查。",
+      "Don't 用复杂花哨动效、发光或多余阴影制造不存在的层级。"
+    ]
+  }
+}
