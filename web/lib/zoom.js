@@ -8,10 +8,22 @@ export function clamp(value, min, max) {
 }
 
 export function clampPan(state, bounds) {
-	const overflowX = Math.max(0, (bounds.imageWidth * state.scale - bounds.viewportWidth) / 2);
-	const overflowY = Math.max(0, (bounds.imageHeight * state.scale - bounds.viewportHeight) / 2);
+	const scale = clamp(state.scale, MIN_SCALE, MAX_SCALE);
+	if (scale <= MIN_SCALE) {
+		return resetZoom();
+	}
+	const overflowX = Math.max(
+		(bounds.imageWidth * scale - bounds.viewportWidth) / 2,
+		(bounds.viewportWidth - bounds.imageWidth) / 2,
+		(bounds.imageWidth * (scale - 1)) / 2,
+	);
+	const overflowY = Math.max(
+		(bounds.imageHeight * scale - bounds.viewportHeight) / 2,
+		(bounds.viewportHeight - bounds.imageHeight) / 2,
+		(bounds.imageHeight * (scale - 1)) / 2,
+	);
 	return {
-		scale: clamp(state.scale, MIN_SCALE, MAX_SCALE),
+		scale,
 		x: clamp(state.x, -overflowX, overflowX),
 		y: clamp(state.y, -overflowY, overflowY),
 	};

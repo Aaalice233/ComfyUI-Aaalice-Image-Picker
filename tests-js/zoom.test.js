@@ -19,8 +19,17 @@ test("cursor-anchored zoom preserves the image coordinate under the pointer", ()
 
 test("zoom and pan are clamped to scale and visible boundaries", () => {
 	assert.deepEqual(zoomAt(resetZoom(), 99, { x: 0, y: 0 }, bounds), { scale: 8, x: 0, y: 0 });
-	assert.deepEqual(panBy({ scale: 2, x: 0, y: 0 }, { x: 9999, y: -9999 }, bounds), { scale: 2, x: 400, y: -100 });
+	assert.deepEqual(panBy({ scale: 2, x: 0, y: 0 }, { x: 9999, y: -9999 }, bounds), { scale: 2, x: 400, y: -200 });
 	assert.deepEqual(clampPan({ scale: 1, x: 30, y: 30 }, bounds), resetZoom());
+});
+
+test("narrow images in wide viewports retain movement range matching unscaled margins and expansion", () => {
+	const portraitBounds = { viewportWidth: 1400, viewportHeight: 800, imageWidth: 540, imageHeight: 800 };
+	const unscaledMarginX = (portraitBounds.viewportWidth - portraitBounds.imageWidth) / 2;
+	assert.equal(unscaledMarginX, 430);
+	const panned = panBy({ scale: 1.5, x: 0, y: 0 }, { x: 9999, y: 9999 }, portraitBounds);
+	assert.equal(panned.x, 430);
+	assert.equal(panned.y, 200);
 });
 
 test("unchanged boundary states can skip redundant raster work", () => {
